@@ -4,7 +4,8 @@
 // Zetland (7 Nov), with a small synthetic set of nearby rentals + DAs.
 // The brief is re-labelled with the address on screen and clearly marked as test data.
 
-import { formatAddress } from './address.js';
+import { tool } from '../runtime/index.js';
+import { formatAddress, parseAddress } from './address.js';
 import { computeBrief } from './listing-brief.js';
 
 // Shapes + values from the live demo proxy for Unit 38, 3 Victoria Park Pde, Zetland (7 Nov).
@@ -58,4 +59,22 @@ export function testBrief(parts, investor = TEST_INVESTOR) {
   const brief = computeBrief({ ...TEST_RAW, match }, { investor });
   brief.meta = { source: 'TEST DATA (bundled fixture, not live Microburbs)', test_data: true, suburbs_searched: [match.sal], fetched_ms: 0, fetched_at: new Date().toISOString() };
   return brief;
+}
+
+/** get_listing_brief backed by the bundled fixture (same name + schema as the live tool). */
+export function testListingBriefTool({ investor = TEST_INVESTOR, memory = null, listing = null } = {}) {
+  return tool({
+    name: 'get_listing_brief',
+    description: 'TEST DATA MODE: returns a brief computed from bundled fixture figures (not live Microburbs) for the given address. Same shape as the live tool. Mention that figures are test data.',
+    input_schema: {
+      type: 'object',
+      properties: { address: { type: 'string', description: 'Full address including unit number' } },
+      required: ['address'],
+    },
+    execute: async ({ address }) => {
+      const brief = testBrief(parseAddress(address), investor);
+      await memory?.save(brief, listing ? { url: listing.url, image: listing.page?.image, title: listing.page?.heading } : {}).catch(() => {});
+      return JSON.stringify(brief);
+    },
+  });
 }

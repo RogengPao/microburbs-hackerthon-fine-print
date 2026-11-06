@@ -13,7 +13,7 @@ import {
 } from '../runtime/index.js';
 import { addressFromPage, formatAddress } from './address.js';
 import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
-import { testBrief } from './test-data.js';
+import { testBrief, testListingBriefTool } from './test-data.js';
 import { microburbsTools } from './microburbs-tools.js';
 import { openAppDb, PropertyMemory, propertyMemoryTools } from './property-memory.js';
 import { pageContextText } from './page-context.js';
@@ -145,11 +145,15 @@ async function turn({ threadId, inbound, listing, brief = null, onDelta, onEvent
   const adapter = adapterFor(snapshot, { apiKey: await llmKey(settings.provider), ...(settings.provider === 'openrouter' ? { appTitle: 'Fine Print' } : {}) });
   const secretProvider = new ChromeStorageSecretProvider();
   const memory = new PropertyMemory();
-  const tools = new ToolRegistry([
-    listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing }),
-    ...propertyMemoryTools(memory),
-    ...microburbsTools({ source: settings.mbSource, secretProvider }),
-  ]);
+  const tools = new ToolRegistry(
+    settings.mbSource === 'test'
+      ? [testListingBriefTool({ investor: settings.brief, memory, listing }), ...propertyMemoryTools(memory)] // no network
+      : [
+          listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing }),
+          ...propertyMemoryTools(memory),
+          ...microburbsTools({ source: settings.mbSource, secretProvider }),
+        ],
+  );
   const store = new IndexedDbTranscript(threadId, { db: openAppDb() });
   // Ephemeral context: the listing page, re-sent every step, never persisted — so the
   // transcript stays clean and the agent always sees the page as it is now.

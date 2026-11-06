@@ -5,7 +5,7 @@ Hand-in closes **15:00**. Team key + CSVs arrive **11:00**.
 
 ## Task 3 — Chrome extension (main submission)
 
-- [ ] 🟢 **Listing brief** — one tool: match address → fetch every Microburbs endpoint in parallel → investor maths in code (rent, yield, weekly cost, supply) → cached per property _(built + unit-tested; needs a live check in the extension)_
+- [ ] 🟢 **Listing brief** — one tool: match address → fetch every Microburbs endpoint in parallel → investor maths in code (rent, yield, weekly cost, supply) → cached per property _(built + unit-tested; needs a live check in the extension)_ (JAKE)
 - [x] 🟢 **Fast first read** — agent talks first using the brief: one tool call, one model step _(wired; live check with the brief)_
 - [ ] 🟢 **Address reading** — clean address off REA and Domain listing pages (unit, number, street, suburb)
 - [ ] 🔑 **Exact address matching** — match against the City of Sydney address list, geocode fallback, show "Matched: …" so judges can check it; test set of ~15 real listings scoring ≥14/15

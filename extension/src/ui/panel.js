@@ -1,7 +1,7 @@
 // Dev panel: a bare chat over the runtime so the agent + Microburbs tools can be
 // tested in Chrome. Not the real design (that's the Paper v3 page).
 
-import { ask, firstRead, history } from '../agent/agent.js';
+import { ask, firstRead, history, loadBrief } from '../agent/agent.js';
 import { readTab } from '../agent/page-context.js';
 
 const $ = (id) => document.getElementById(id);
@@ -24,6 +24,7 @@ async function currentTab() {
 
 const LISTING_URL = /realestate\.com\.au\/property-|domain\.com\.au\/[^/?#]+-\d{7,}\/?(?:[?#]|$)/;
 let listing = null;
+let brief = null; // the loaded listing brief (docs/brief.md)
 let threadId = null;
 let busy = false;
 
@@ -104,11 +105,49 @@ async function detectListing() {
   await chrome.storage.local.set({ threads });
   await renderHistory();
   scroll();
-  // Agent talks first: a fresh listing thread gets the hidden first-read turn.
-  if (listing && !(await history(threadId)).length) {
-    await run((handlers) => firstRead({ threadId, listing, ...handlers }), { status: 'Reading this listing…' });
-  }
   $('starters').hidden = busy;
+  // Data first, no LLM: address → GNAF → brief, so widgets render immediately.
+  brief = null;
+  $('data').hidden = !listing;
+  if (listing) await fetchBrief();
+}
+
+const money = (n) => (n == null ? 'n/a' : `$${Math.round(n).toLocaleString('en-AU')}`);
+const pct = (n) => (n == null ? 'n/a' : `${n}%`);
+
+async function fetchBrief() {
+  $('matched').textContent = 'Matching address…';
+  $('figures').replaceChildren();
+  $('read').disabled = true;
+  const res = await loadBrief({
+    listing,
+    onProgress: (p) => {
+      if (p.stage === 'address') $('matched').textContent = `Matching: ${p.text} (${p.source})…`;
+      if (p.stage === 'matched') $('matched').textContent = `Matched: ${p.address} · fetching…`;
+    },
+  });
+  brief = res.ok ? res.brief : null;
+  window.finePrint = { brief, result: res };
+  window.dispatchEvent(new CustomEvent('fineprint:brief', { detail: res }));
+  console.log('[fine-print] brief', res);
+  if (!res.ok) {
+    $('matched').textContent = `No exact match — ${res.message}${res.hint ? ` (${res.hint})` : ''}`;
+    $('read').disabled = false; // the agent can still try / ask the investor
+    return;
+  }
+  const b = res.brief;
+  $('matched').textContent = `Matched: ${b.property.address} · ${b.property.gnaf_id}${b.meta?.cached ? ' · cached' : ` · ${b.meta?.fetched_ms} ms`}`;
+  const rows = [
+    ['Asking', money(b.price.asking)],
+    ['Likely sale', money(b.price.likely_sale)],
+    ['Est. value', b.price.value ? `${money(b.price.value.estimate)} (${b.price.value.confidence}%)` : 'n/a'],
+    ['Rent', b.rent.weekly ? `${money(b.rent.weekly)}/wk · ${b.rent.comparables} comps` : 'n/a'],
+    ['Yield', `${pct(b.returns.gross_yield_pct_at_asking)} asking · ${pct(b.returns.gross_yield_pct_at_likely)} likely`],
+    ['Weekly cost', b.weekly_cost.net_before_tax == null ? 'n/a' : `${money(b.weekly_cost.net_before_tax)}/wk`],
+    ['New homes ≤1 km', `${b.supply.new_dwellings_stated} (${b.supply.build_to_rent_dwellings} build-to-rent)`],
+  ];
+  $('figures').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', null, k), el('dd', null, v)]));
+  $('read').disabled = false;
 }
 
 async function newThread() {
@@ -123,7 +162,11 @@ async function send(text) {
   if (busy || !text.trim()) return;
   renderMessage({ role: 'user', text });
   $('input').value = '';
-  await run((handlers) => ask({ threadId, text, listing, ...handlers }));
+  await run((handlers) => ask({ threadId, text, listing, brief, ...handlers }));
+}
+
+async function readListing() {
+  await run((handlers) => firstRead({ threadId, listing, brief, ...handlers }), { status: 'Reading this listing…' });
 }
 
 /** Run one turn with live streaming + tool lines, then re-render from the transcript. */
@@ -191,5 +234,7 @@ $('starters').addEventListener('click', (e) => {
   if (e.target.tagName === 'BUTTON') send(e.target.textContent);
 });
 $('new').addEventListener('click', newThread);
+$('read').addEventListener('click', readListing);
+$('copy-brief').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(window.finePrint?.result ?? null, null, 2)));
 $('opts').addEventListener('click', () => chrome.runtime.openOptionsPage());
 detectListing();

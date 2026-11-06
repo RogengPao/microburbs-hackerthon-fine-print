@@ -11,6 +11,7 @@
 import { tool, ToolError } from '../runtime/index.js';
 import { AllowlistHttpClient } from '../runtime/tools/http.js';
 import { SOURCES } from './microburbs-tools.js';
+import { formatAddress, matchCandidate, parseAddress } from './address.js';
 
 // ---------------------------------------------------------------- geography
 // Exact SAL names (verified against geocode/suburb, 7 Nov) + approx centroids.
@@ -83,30 +84,6 @@ export function quantile(values, q) {
   return v[lo] + (v[hi] - v[lo]) * (i - lo);
 }
 const round = (n, to = 1) => (n == null || !Number.isFinite(n) ? null : Number((Math.round(n / to) * to).toFixed(6)));
-
-// ---------------------------------------------------------------- address match
-/** Pull unit + street number out of a typed/read address. */
-export function addressParts(address) {
-  const a = String(address ?? '').toUpperCase().replace(/\s+/g, ' ').trim();
-  let m = a.match(/^(?:UNIT|APT|APARTMENT|LEVEL\s+\d+\s*,?\s*UNIT)?\s*([A-Z]?\d+[A-Z]?)\s*\/\s*(\d+[A-Z]?)/);
-  if (m) return { unit: m[1], number: m[2] };
-  m = a.match(/(?:UNIT|APT|APARTMENT)\s+([A-Z]?\d+[A-Z]?)\s*,?\s*(\d+[A-Z]?)\b/);
-  if (m) return { unit: m[1], number: m[2] };
-  m = a.match(/^(\d+[A-Z]?)\b/);
-  return { unit: null, number: m?.[1] ?? null };
-}
-
-/** Choose the geocode candidate whose unit + number match exactly; else null. */
-export function pickCandidate(candidates, address) {
-  const want = addressParts(address);
-  const scored = (candidates ?? []).map((c) => {
-    const got = addressParts(c.abbr ?? c.display_name ?? c.name);
-    const unitOk = want.unit ? got.unit === want.unit : !got.unit;
-    const numOk = want.number ? got.number === want.number : true;
-    return { c, ok: unitOk && numOk };
-  });
-  return scored.find((x) => x.ok)?.c ?? null;
-}
 
 // ---------------------------------------------------------------- supply
 const DWELLING_RE =
@@ -296,9 +273,9 @@ async function cacheSet(key, brief) {
 
 /**
  * Fetch + compute a brief for an address. Throws a ToolError-shaped err on no match.
- * @param {Object} o  { address, source, secretProvider, investor, fetch?, onProgress? }
+ * @param {Object} o  { address | parts, source, secretProvider, investor, fetch?, onProgress? }
  */
-export async function fetchListingBrief({ address, source = 'proxy', secretProvider, investor, fetch: fetchImpl, onProgress = () => {} }) {
+export async function fetchListingBrief({ address = null, parts = null, source = 'proxy', secretProvider, investor, fetch: fetchImpl, onProgress = () => {} }) {
   const s = SOURCES[source];
   const http = new AllowlistHttpClient([s.host], { timeoutS: 20, fetch: fetchImpl, credentials: s.auth ? 'omit' : 'include' });
   const headers = s.auth ? { Authorization: `Bearer ${await secretProvider.get('microburbs')}` } : {};
@@ -311,10 +288,19 @@ export async function fetchListingBrief({ address, source = 'proxy', secretProvi
   const soft = (p) => p.catch(() => null); // one endpoint failing must not sink the brief
 
   const t0 = Date.now();
-  const candidates = (await get('/geocode/address', { address })) ?? [];
-  const match = pickCandidate(candidates, address);
+  // Strict match: unit + number + street (+ suburb). Try the formatted parts first,
+  // then the raw text, before giving up — never fall back to "closest".
+  const want = parts ?? parseAddress(address);
+  const queries = [...new Set([formatAddress(want), address].filter(Boolean))];
+  let match = null;
+  let candidates = [];
+  for (const q of queries) {
+    candidates = (await get('/geocode/address', { address: q })) ?? [];
+    match = matchCandidate(candidates, want)?.candidate ?? null;
+    if (match) break;
+  }
   if (!match) {
-    throw new ToolError(`no exact match for "${address}"`, {
+    throw new ToolError(`no exact match for "${address ?? formatAddress(want)}"`, {
       hint: `closest candidates: ${candidates.slice(0, 3).map((c) => c.display_name).join('; ') || 'none'} — ask the investor to confirm the address`,
       error_code: 'no_match',
     });

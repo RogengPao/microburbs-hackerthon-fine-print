@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addressParts, computeBrief, dwellingsFromDescription, haversineKm, pickCandidate, quantile, suburbsNear } from '../src/agent/listing-brief.js';
+import { computeBrief, dwellingsFromDescription, haversineKm, quantile, suburbsNear } from '../src/agent/listing-brief.js';
 
 // Shapes + values from the live demo proxy for Unit 38, 3 Victoria Park Pde, Zetland (7 Nov).
 const HERE = { lat: -33.90521711, lng: 151.21082342 };
@@ -92,18 +92,6 @@ test('dwelling counts from DA descriptions', () => {
   assert.equal(dwellingsFromDescription('A 12 storey building with 111 apartments and 3 retail tenancies'), 111);
   assert.equal(dwellingsFromDescription('Mixed use: 376 residential units and 2 commercial units'), 376);
   assert.equal(dwellingsFromDescription('Alterations and additions to a terrace'), null);
-});
-
-test('address matching needs the exact unit and street number', () => {
-  assert.deepEqual(addressParts('Unit 38, 3 Victoria Park Parade, Zetland NSW 2017'), { unit: '38', number: '3' });
-  assert.deepEqual(addressParts('38/3 Victoria Park Pde'), { unit: '38', number: '3' });
-  assert.deepEqual(addressParts('UNIT 38/3 VICTORIA PARK PDE ZETLAND'), { unit: '38', number: '3' });
-  const cands = [
-    { id: 'wrong', abbr: 'UNIT 3/8 VICTORIA RD GLEBE (NSW)' },
-    { id: 'right', abbr: 'UNIT 38/3 VICTORIA PARK PDE ZETLAND' },
-  ];
-  assert.equal(pickCandidate(cands, 'Unit 38, 3 Victoria Park Parade, Zetland')?.id, 'right');
-  assert.equal(pickCandidate(cands, 'Unit 39, 3 Victoria Park Parade, Zetland'), null);
 });
 
 test('helpers', () => {

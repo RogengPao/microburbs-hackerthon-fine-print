@@ -2,6 +2,7 @@
 // This is the HOST side of the runtime contract (owns storage, keys, context).
 
 import {
+  ToolError,
   adapterFor,
   agentSnapshot,
   ChromeStorageSecretProvider,
@@ -10,7 +11,8 @@ import {
   runTurn,
   ToolRegistry,
 } from '../runtime/index.js';
-import { listingBriefTool } from './listing-brief.js';
+import { addressFromPage, formatAddress } from './address.js';
+import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
 import { microburbsTools } from './microburbs-tools.js';
 import { openAppDb, PropertyMemory, propertyMemoryTools } from './property-memory.js';
 import { pageContextText } from './page-context.js';
@@ -62,16 +64,44 @@ async function llmKey(provider) {
  * @param {(e: Object) => void} [o.onEvent]
  * @param {() => boolean} [o.shouldContinue]
  */
-export async function ask({ threadId, text, listing, onDelta, onEvent, shouldContinue }) {
-  return turn({ threadId, inbound: message({ role: 'user', text }), listing, onDelta, onEvent, shouldContinue });
+/**
+ * The data pipeline — no LLM. Page → address → strict GNAF match → brief (all
+ * Microburbs endpoints in parallel) → saved to property memory. The panel calls this
+ * the moment it opens so widgets can render before anyone asks anything.
+ * @returns {Promise<{ok: true, brief: Object, address: Object} | {ok: false, reason: string, message: string, hint?: string, address?: Object}>}
+ */
+export async function loadBrief({ listing, onProgress = () => {} }) {
+  const address = addressFromPage(listing?.page);
+  if (!address) return { ok: false, reason: 'no_address', message: 'Could not read an address from this page.' };
+  onProgress({ stage: 'address', ...address, text: formatAddress(address.parts) });
+  const settings = await loadSettings();
+  try {
+    const brief = await fetchListingBrief({
+      parts: address.parts,
+      source: settings.mbSource,
+      secretProvider: new ChromeStorageSecretProvider(),
+      investor: settings.brief,
+      onProgress,
+    });
+    brief.listing = { url: listing.url ?? null, image: listing.page?.image ?? null, portal: listing.page?.listing?.portal ?? null, listing_id: listing.page?.listing?.listing_id ?? null, address_source: address.source };
+    await new PropertyMemory().save(brief, { url: listing.url, image: listing.page?.image, title: listing.page?.heading }).catch(() => {});
+    return { ok: true, brief, address };
+  } catch (e) {
+    if (e instanceof ToolError) return { ok: false, reason: e.errorCode, message: e.message, hint: e.hint, address };
+    return { ok: false, reason: 'error', message: String(e?.message ?? e), address };
+  }
+}
+
+export async function ask({ threadId, text, listing, brief = null, onDelta, onEvent, shouldContinue }) {
+  return turn({ threadId, inbound: message({ role: 'user', text }), listing, brief, onDelta, onEvent, shouldContinue });
 }
 
 // The hidden first-read prompt: the agent talks first. Persisted as a `system`
 // record (a host-injected instruction, never rendered) so follow-up questions keep
 // the context of what was already read.
-export const FIRST_READ_PROMPT = `The investor has just opened this listing and hasn't asked anything yet. Produce the first read now.
+export const FIRST_READ_PROMPT = `The investor clicked "Read this listing". Produce the first read now.
 
-Call get_listing_brief ONCE with the listing's full address (include the unit number). Then write the read from the brief — no other tools. If there's no exact match, say which address you tried and ask the investor to confirm it.
+If the listing brief is already in your context, write the read straight from it — no tools. If it isn't, call get_listing_brief ONCE with the listing's full address (include the unit number), then write the read. If there's no exact match, say which address you tried and ask the investor to confirm it.
 
 Reply in PLAIN TEXT only — no markdown, no bold, no tables — in exactly this shape:
 
@@ -96,11 +126,11 @@ UPSIDE
 If a figure is missing, write "n/a" and say why in a few words.`;
 
 /** Agent-first turn for a fresh listing thread. */
-export async function firstRead({ threadId, listing, onDelta, onEvent, shouldContinue }) {
-  return turn({ threadId, inbound: message({ role: 'system', text: FIRST_READ_PROMPT }), listing, onDelta, onEvent, shouldContinue });
+export async function firstRead({ threadId, listing, brief = null, onDelta, onEvent, shouldContinue }) {
+  return turn({ threadId, inbound: message({ role: 'system', text: FIRST_READ_PROMPT }), listing, brief, onDelta, onEvent, shouldContinue });
 }
 
-async function turn({ threadId, inbound, listing, onDelta, onEvent, shouldContinue }) {
+async function turn({ threadId, inbound, listing, brief = null, onDelta, onEvent, shouldContinue }) {
   const settings = await loadSettings();
   const snapshot = agentSnapshot({
     agent_version: 'fine-print-dev',
@@ -127,6 +157,11 @@ async function turn({ threadId, inbound, listing, onDelta, onEvent, shouldContin
     : listing?.url
       ? [message({ role: 'system', text: `The investor is viewing this listing: ${listing.title ?? ''} — ${listing.url}` })]
       : [];
+  // The pre-loaded brief rides along as ephemeral context too: the model quotes it
+  // instead of calling get_listing_brief (saves a full model round trip).
+  if (brief) {
+    ephemeralContext.push(message({ role: 'system', text: `Listing brief for the property on screen (from Microburbs; computed, authoritative — quote these numbers):\n${JSON.stringify(brief)}` }));
+  }
   return runTurn(snapshot, store, adapter, tools, {
     inbound,
     ephemeralContext,

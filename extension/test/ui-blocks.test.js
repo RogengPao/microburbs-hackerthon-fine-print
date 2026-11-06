@@ -45,7 +45,7 @@ test('unknown template is rejected by the schema with the allowed list', async (
   const reg = new ToolRegistry([uiBlockTool({ lessons: new LessonBook(memoryStorage()) })]);
   const out = await reg.execute(call('pie_chart', {}));
   assert.equal(out.error, true);
-  assert.match(JSON.parse(out.result).error, /yield/);
+  assert.match(JSON.parse(out.result).hint, /yield/);
 });
 
 test('learning: mistakes are recorded and fed back as lessons', async () => {
@@ -62,4 +62,21 @@ test('learning: mistakes are recorded and fed back as lessons', async () => {
 
 test('the guide documents every template', () => {
   for (const name of Object.keys(TEMPLATES)) assert.match(templateGuide(name), /Valid example body/);
+});
+
+test('robust inputs: body as a JSON string and the design name both work', async () => {
+  const { normaliseBlockArgs, resolveTemplate } = await import('../src/agent/ui-blocks.js');
+  const reg = new ToolRegistry([uiBlockTool({ lessons: new LessonBook(memoryStorage()) })]);
+  const asString = await reg.execute(call('value', JSON.stringify(TEMPLATES.value.example)));
+  assert.equal(asString.error, false);
+  const byTitle = await reg.execute(call('show_estimated_value', TEMPLATES.value.example));
+  assert.equal(byTitle.error, false);
+  assert.equal(resolveTemplate('show_yield_comparison'), 'yield');
+  assert.equal(resolveTemplate('Cash flow'), 'cash_flow');
+  assert.deepEqual(normaliseBlockArgs({ template: 'show_estimated_value', body: JSON.stringify({ a: 1 }) }), { template: 'value', body: { a: 1 } });
+  const unknown = JSON.parse((await reg.execute(call('pie_chart', {}))).result);
+  assert.equal(unknown.error_code, 'unknown_template');
+  assert.match(unknown.hint, /cash_flow — "What will it cost me\?"/);
+  const badString = JSON.parse((await reg.execute(call('value', '{not json'))).result);
+  assert.match(badString.hint, /Valid example body/);
 });

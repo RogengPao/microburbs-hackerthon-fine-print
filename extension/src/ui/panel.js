@@ -6,6 +6,7 @@ import { readTab } from '../agent/page-context.js';
 import { addressFromPage } from '../agent/address.js';
 import { renderMarkdown } from './markdown.js';
 import { renderBlock } from './blocks.js';
+import { normaliseBlockArgs } from '../agent/ui-blocks.js';
 
 const $ = (id) => document.getElementById(id);
 const thread = $('thread');
@@ -81,11 +82,23 @@ function renderMessage(m) {
   } else if (m.role === 'tool_response') {
     const row = thread.querySelector(`[data-call="${CSS.escape(m.call_id)}"]`);
     if (row?.classList.contains('ub-slot')) {
-      // valid → draw the card; invalid → drop it (the agent corrects and calls again)
-      if (m.is_error) row.remove();
-      else {
-        const { template, body } = JSON.parse(row.dataset.args);
-        row.replaceWith(renderBlock(template, body));
+      // valid → draw the card; invalid → a small visible note (the agent usually fixes it and calls again)
+      if (m.is_error) {
+        let why = m.text;
+        try {
+          why = JSON.parse(m.text).error;
+        } catch {
+          /* raw text */
+        }
+        row.replaceWith(el('div', 'meta ub-failed', `✕ card not drawn: ${String(why).slice(0, 160)}`));
+      } else {
+        const { template, body } = normaliseBlockArgs(JSON.parse(row.dataset.args));
+        try {
+          row.replaceWith(template && body ? renderBlock(template, body) : el('div', 'meta ub-failed', '✕ card not drawn: unreadable arguments'));
+        } catch (e) {
+          console.error('[fine-print] card render failed', e, template, body);
+          row.replaceWith(el('div', 'meta ub-failed', `✕ card not drawn: ${e.message}`));
+        }
       }
     } else if (row) fillTool(row, m.text, m.is_error);
   }

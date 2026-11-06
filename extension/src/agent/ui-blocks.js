@@ -349,6 +349,26 @@ export class LessonBook {
   }
 }
 
+/** Stored call args → { template, body } exactly as the tool accepted them (panel uses this). */
+export function normaliseBlockArgs(args) {
+  let body = args?.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = null;
+    }
+  }
+  return { template: resolveTemplate(args?.template), body };
+}
+
+/** "yield", "show_yield_comparison", "Yield" → "yield" (null when unknown). */
+export function resolveTemplate(name) {
+  const n = String(name ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (TEMPLATES[n]) return n;
+  return Object.keys(TEMPLATES).find((k) => TEMPLATES[k].title === n || n === `show_${k}`) ?? null;
+}
+
 // ---------------------------------------------------------------- the tool
 export function uiBlockTool({ lessons = new LessonBook() } = {}) {
   return tool({
@@ -359,15 +379,40 @@ export function uiBlockTool({ lessons = new LessonBook() } = {}) {
 Templates:
 ${templateList()}
 If the body is wrong you'll get back exactly what to fix plus a valid example; correct it and call again.`,
+    // Loose outer schema on purpose: template + body are checked INSIDE execute so every
+    // mistake gets the self-documenting error (generic arg validation can't teach).
     input_schema: {
       type: 'object',
       properties: {
-        template: { type: 'string', enum: Object.keys(TEMPLATES), description: 'which card' },
-        body: { type: 'object', description: "the card's data — shape depends on the template (see the template's field guide)" },
+        template: { type: 'string', description: `which card: ${Object.keys(TEMPLATES).join(' | ')}` },
+        body: { type: ['object', 'string'], description: "the card's data as a JSON object — shape depends on the template (see the template's field guide)" },
       },
       required: ['template', 'body'],
     },
-    execute: async ({ template, body }) => {
+    execute: async (args) => {
+      const template = resolveTemplate(args.template);
+      if (!template) {
+        await lessons.record('unknown', [`template "${args.template}" does not exist`]);
+        throw new ToolError(`render_ui_block: unknown template "${args.template}"`, {
+          hint: `Use one of these template keys (exactly):\n${templateList()}`,
+          retryable: true,
+          error_code: 'unknown_template',
+        });
+      }
+      let body = args.body;
+      if (typeof body === 'string') {
+        // models often send nested objects as a JSON string — accept it, but teach the right shape
+        try {
+          body = JSON.parse(body);
+        } catch {
+          await lessons.record(template, ['body was a string that is not valid JSON — pass body as an object']);
+          throw new ToolError('render_ui_block: body must be a JSON object, not a string', {
+            hint: `Pass body as an object.\n${templateGuide(template)}`,
+            retryable: true,
+            error_code: 'invalid_block_body',
+          });
+        }
+      }
       const t = TEMPLATES[template];
       const problems = validate(t.schema, body).map((p) => p.replace(/^<root>/, 'body').replace(/^(?!body)/, 'body.'));
       if (problems.length) {

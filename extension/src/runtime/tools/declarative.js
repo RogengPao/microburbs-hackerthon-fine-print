@@ -247,6 +247,7 @@ export function declarativeTool(raw, { secretProvider, context = {}, egressPolic
   return tool({
     name: m.name,
     description: m.description,
+    label: typeof raw.label === 'string' ? raw.label : null,
     input_schema: m.input_schema,
     // async delivery = the turn suspends; the host fetches and calls resumeTurn
     delivery: m.delivery === 'sync' ? 'sync' : 'deferred',

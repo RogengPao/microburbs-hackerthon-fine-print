@@ -65,6 +65,7 @@ export function testBrief(parts, investor = TEST_INVESTOR) {
 export function testListingBriefTool({ investor = TEST_INVESTOR, memory = null, listing = null } = {}) {
   return tool({
     name: 'get_listing_brief',
+    label: 'Pulling the brief (test data)',
     description: 'TEST DATA MODE: returns a brief computed from bundled fixture figures (not live Microburbs) for the given address. Same shape as the live tool. Mention that figures are test data.',
     input_schema: {
       type: 'object',

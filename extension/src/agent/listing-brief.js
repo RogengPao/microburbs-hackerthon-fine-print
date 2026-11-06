@@ -339,6 +339,7 @@ export async function fetchListingBrief({ address = null, parts = null, source =
 export function listingBriefTool({ source, secretProvider, investor, onProgress, memory = null, listing = null }) {
   return tool({
     name: 'get_listing_brief',
+    label: 'Pulling the Microburbs brief for this property',
     description:
       'ONE call that returns everything for the first read of a listing: matched GNAF address, asking/likely sale/estimated value, agency quoting record, rent estimate from nearby same-bed rentals, gross yield, weekly cost before tax, new dwellings in development applications within 1 km, competing listings, recent nearby sales, suburb market and hazards. All figures are computed from Microburbs data. Use this first; use the individual tools only to dig deeper.',
     input_schema: {

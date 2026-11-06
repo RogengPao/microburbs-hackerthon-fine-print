@@ -184,6 +184,7 @@ export function propertyMemoryTools(memory) {
   return [
     tool({
       name: 'recall_properties',
+      label: "Looking through properties you've viewed",
       description:
         "Search every property the investor has had analysed before (saved automatically whenever get_listing_brief runs). Returns compact rows: address, suburb, beds, link, image, asking, likely sale, estimated value, rent, yields, weekly cost, budget/yield fit, new dwellings within 1 km, risks, when analysed. Use it to compare this listing with earlier ones, answer 'which was the best one I looked at?', or find a property they mention by name or suburb.",
       input_schema: {
@@ -205,6 +206,7 @@ export function propertyMemoryTools(memory) {
     }),
     tool({
       name: 'get_saved_property',
+      label: 'Opening a saved property',
       description:
         'The full saved brief for one previously analysed property (same shape as get_listing_brief), plus its link, image and when it was analysed. Pass a GNAF id from recall_properties, or an address.',
       input_schema: {

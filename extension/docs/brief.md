@@ -53,3 +53,11 @@ Money is whole dollars, percentages are already ×100 (4.73 means 4.73%), weekly
 - **Microburbs is the source of truth** for every number shown. Page data is only used to read the address.
 - Show `property.address` (the matched GNAF address) prominently. Judges check it.
 - The brief is cached per property for 6 h, and every brief is saved to property memory (IndexedDB `fine-print` → `properties`).
+
+## Agent activity (tool labels)
+
+Every tool has a people-facing **`label`** (e.g. "Checking rentals nearby"), separate from the model-facing `description`. Show the label, never the function name.
+
+- Live: `onEvent` gets `{ event: 'tool_start', name, label, call_id, args }` when a tool starts and `{ event: 'tool', name, label, call_id, error, deferred }` when it finishes.
+- Stored transcripts only keep tool names, so map them with `import { TOOL_LABELS } from '../agent/agent.js'` (`TOOL_LABELS[name] ?? name`).
+- Adding a tool: set `label` on `tool({...})`, or `label` in a declarative manifest / `LABELS` in `microburbs-tools.js`.

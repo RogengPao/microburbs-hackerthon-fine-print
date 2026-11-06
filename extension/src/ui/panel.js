@@ -1,7 +1,7 @@
 // Dev panel: a bare chat over the runtime so the agent + Microburbs tools can be
 // tested in Chrome. Not the real design (that's the Paper v3 page).
 
-import { ask, firstRead, history, loadBrief } from '../agent/agent.js';
+import { ask, firstRead, history, loadBrief, TOOL_LABELS } from '../agent/agent.js';
 import { readTab } from '../agent/page-context.js';
 
 const $ = (id) => document.getElementById(id);
@@ -73,8 +73,9 @@ function toolRow(id, name, args) {
   const d = el('details', 'tool');
   d.dataset.call = id;
   const s = el('summary');
-  s.append(el('span', 'tname', name), el('span', 'targs', JSON.stringify(args ?? {})), el('span', 'tstatus', '…'));
-  d.append(s, el('pre', 'tbody', 'running…'));
+  // People see the label ("Checking rentals nearby"); the raw name + args sit in the expanded body.
+  s.append(el('span', 'tname', TOOL_LABELS[name] ?? name), el('span', 'tstatus', '…'));
+  d.append(s, el('div', 'targs', `${name} ${JSON.stringify(args ?? {})}`), el('pre', 'tbody', 'running…'));
   return d;
 }
 
@@ -200,8 +201,15 @@ async function run(runner, { status = null } = {}) {
           live.remove(); // the persisted record re-renders below
           live = null;
         }
+        if (e.event === 'tool_start') {
+          const line = el('div', 'meta', `${e.label ?? e.name}…`);
+          line.dataset.call = e.call_id;
+          thread.append(line);
+          scroll();
+        }
         if (e.event === 'tool') {
-          thread.append(el('div', 'meta', `${e.error ? '✕' : '→'} ${e.name}`));
+          const line = thread.querySelector(`.meta[data-call="${CSS.escape(e.call_id)}"]`) ?? thread.appendChild(el('div', 'meta'));
+          line.textContent = `${e.error ? '✕' : '✓'} ${e.label ?? e.name}`;
           scroll();
         }
         if (e.event === 'retry') thread.append(el('div', 'meta', `retrying (${e.reason})…`));

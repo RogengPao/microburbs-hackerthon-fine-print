@@ -177,6 +177,13 @@ async function turn({ threadId, inbound, listing, brief = null, onDelta, onEvent
   });
 }
 
+/** name → people-facing label for every tool the agent can call (for rendering transcripts). */
+export const TOOL_LABELS = new ToolRegistry([
+  listingBriefTool({ source: 'api' }),
+  ...propertyMemoryTools(null),
+  ...microburbsTools({ source: 'api' }),
+]).labels();
+
 export async function history(threadId) {
   return new IndexedDbTranscript(threadId, { db: openAppDb() }).messages();
 }

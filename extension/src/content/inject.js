@@ -163,4 +163,19 @@
   // Auto-open on listings: the read is there before the investor asks.
   if (isListing()) setTimeout(open, 400);
   else pill.classList.add('show');
+
+  // REA (search + listing are one app) and Domain (Next.js) navigate client-side:
+  // clicking a result changes the URL WITHOUT a page load, so this script never
+  // re-runs. Watch the URL; on a listing open + tell the panel to re-read, else close.
+  let lastUrl = location.href;
+  setInterval(() => {
+    if (location.href === lastUrl) return;
+    lastUrl = location.href;
+    if (isListing()) {
+      open();
+      frame.contentWindow?.postMessage({ type: 'fineprint:navigated', url: location.href }, EXT_ORIGIN);
+    } else {
+      close();
+    }
+  }, 400);
 })();

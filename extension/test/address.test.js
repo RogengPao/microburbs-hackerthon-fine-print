@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addressFromPage, formatAddress, matchCandidate, parseAddress, streetParts } from '../src/agent/address.js';
+import { addressFromPage, formatAddress, matchAddress, matchCandidate, parseAddress } from '../src/agent/address.js';
 
 test('parse the address formats we meet', () => {
   assert.deepEqual(parseAddress('Unit 38, 3 Victoria Park Parade, Zetland NSW 2017'), {
@@ -16,10 +16,13 @@ test('parse the address formats we meet', () => {
   assert.equal(formatAddress({ unit: '105', number: '8', street: 'Sam Sing Street', suburb: 'Waterloo', state: 'NSW', postcode: '2017' }), '105/8 Sam Sing Street, Waterloo NSW 2017');
 });
 
-test('street names compare by core + type', () => {
-  assert.deepEqual(streetParts('Victoria Park Parade'), { core: 'VICTORIA PARK', type: 'PDE' });
-  assert.deepEqual(streetParts('VICTORIA PARK PDE'), { core: 'VICTORIA PARK', type: 'PDE' });
-  assert.deepEqual(streetParts('The Esplanade'), { core: 'THE', type: 'ESP' });
+test('Lots parse to a lot number and are never an exact match', () => {
+  const lot = parseAddress('Lot, 5511 Nautical Cct, Tarneit, Vic 3029');
+  assert.equal(lot.lot, '5511');
+  assert.equal(lot.street, 'NAUTICAL CCT');
+  const cands = [{ id: 'L', display_name: 'Lot 5511 Nautical Circuit, Tarneit (VIC)' }];
+  assert.equal(matchCandidate(cands, lot), null);
+  assert.equal(matchAddress(cands, lot).reason, 'lot');
 });
 
 // Real geocode candidates for "Unit 38, 3 Victoria Park Parade, Zetland" (7 Nov).

@@ -27,7 +27,8 @@ function readListingPage() {
         const app = ex['resi-property_listing-experience-web'];
         const data = Object.values(JSON.parse(app.urqlClientCache)).map((v) => JSON.parse(v.data));
         const l = data.map((d) => d?.details?.listing).find(Boolean);
-        if (!l) return null;
+        // After client-side navigation this script still holds the FIRST page's data.
+        if (!l || !location.pathname.endsWith(`-${l.id}`)) return null;
         const a = l.address ?? {};
         const short = a.display?.shortAddress ?? '';
         const m = short.match(/^(?:(\w+)\/)?(\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?)\s+(.+)$/);
@@ -44,6 +45,7 @@ function readListingPage() {
         const nd = document.getElementById('__NEXT_DATA__');
         const cp = nd && JSON.parse(nd.textContent)?.props?.pageProps?.componentProps;
         if (!cp?.street) return null;
+        if (!location.pathname.replace(/\/$/, '').endsWith(`-${cp.listingId ?? cp.id}`)) return null; // stale after client-side nav
         return {
           portal: 'domain', listing_id: cp.listingId ?? cp.id ?? null,
           unit: cp.unitNumber || null, number: cp.streetNumber || null, street: cp.street || null,

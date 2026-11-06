@@ -11,7 +11,7 @@
 import { tool, ToolError } from '../runtime/index.js';
 import { AllowlistHttpClient } from '../runtime/tools/http.js';
 import { SOURCES } from './microburbs-tools.js';
-import { formatAddress, matchCandidate, parseAddress } from './address.js';
+import { findProperty, formatAddress, parseAddress, unresolvedHint } from './address.js';
 
 // ---------------------------------------------------------------- geography
 // Exact SAL names (verified against geocode/suburb, 7 Nov) + approx centroids.
@@ -288,23 +288,18 @@ export async function fetchListingBrief({ address = null, parts = null, source =
   const soft = (p) => p.catch(() => null); // one endpoint failing must not sink the brief
 
   const t0 = Date.now();
-  // Strict match: unit + number + street (+ suburb). Try the formatted parts first,
-  // then the raw text, before giving up — never fall back to "closest".
+  // Strict match: unit + number + street + suburb. The pipeline retries looser
+  // queries only while nothing passed — never falls back to "closest".
   const want = parts ?? parseAddress(address);
-  const queries = [...new Set([formatAddress(want), address].filter(Boolean))];
-  let match = null;
-  let candidates = [];
-  for (const q of queries) {
-    candidates = (await get('/geocode/address', { address: q })) ?? [];
-    match = matchCandidate(candidates, want)?.candidate ?? null;
-    if (match) break;
-  }
-  if (!match) {
+  const { match: outcome, candidates } = await findProperty(want, (q) => get('/geocode/address', { address: q }));
+  if (outcome.kind !== 'exact') {
+    const shown = outcome.candidates.length ? outcome.candidates : candidates;
     throw new ToolError(`no exact match for "${address ?? formatAddress(want)}"`, {
-      hint: `closest candidates: ${candidates.slice(0, 3).map((c) => c.display_name).join('; ') || 'none'} — ask the investor to confirm the address`,
+      hint: `${unresolvedHint(outcome.reason)}. Candidates: ${shown.slice(0, 3).map((c) => c.display_name).join('; ') || 'none'}`,
       error_code: 'no_match',
     });
   }
+  const match = outcome.candidate;
   onProgress({ stage: 'matched', address: match.display_name, gnaf_id: match.id });
 
   const cacheKey = `brief:${match.id}`;

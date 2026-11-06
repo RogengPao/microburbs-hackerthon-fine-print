@@ -4,6 +4,7 @@
   font-family: Geist, -apple-system, system-ui, sans-serif; font-size: 13px; color: var(--ink);
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* class display rules (.setup, .data: flex) must not override the hidden attribute */
 body { margin: 0; background: var(--paper); }
 button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 5px 10px; color: var(--ink); }
 .dim { color: var(--muted); }

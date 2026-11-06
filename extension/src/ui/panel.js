@@ -102,7 +102,14 @@ function renderMessage(m) {
       } else {
         // a successful retry makes this turn's earlier failure notes noise
         for (const n of thread.querySelectorAll(`.ub-failed[data-turn="${turnNo}"]`)) n.remove();
-        const { template, body } = normaliseBlockArgs(JSON.parse(row.dataset.args));
+        // the tool fills the card from data and returns it; older calls carried the body in their args
+        let { template, body } = normaliseBlockArgs(JSON.parse(row.dataset.args));
+        try {
+          const res = JSON.parse(m.text);
+          if (res.body) ({ template, body } = { template: res.template ?? template, body: res.body });
+        } catch {
+          /* older result shape */
+        }
         try {
           row.replaceWith(template && body ? renderBlock(template, body) : el('div', 'meta ub-failed', '✕ card not drawn: unreadable arguments'));
         } catch (e) {

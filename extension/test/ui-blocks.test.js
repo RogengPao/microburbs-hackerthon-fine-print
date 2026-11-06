@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LessonBook, TEMPLATES, templateGuide, uiBlockTool } from '../src/agent/ui-blocks.js';
+import { cardFromBrief, LessonBook, offerLadder, resolveTemplate, TEMPLATES, uiBlockTool } from '../src/agent/ui-blocks.js';
+import { testBrief, TEST_INVESTOR } from '../src/agent/test-data.js';
 import { ToolRegistry } from '../src/runtime/index.js';
 import { validate } from '../src/runtime/validate.js';
 
@@ -8,75 +9,78 @@ const memoryStorage = () => {
   const data = {};
   return { data, get: async (k) => ({ [k]: data[k] }), set: async (o) => Object.assign(data, o) };
 };
-const call = (template, body) => ({ id: 'c1', name: 'render_ui_block', args: { template, body } });
+const INVESTOR = { ...TEST_INVESTOR, holdYears: 10 };
+const BRIEF = testBrief({ unit: '38', number: '3', street: 'Victoria Park Parade', suburb: 'Zetland' }, INVESTOR);
+const call = (args) => ({ id: 'c1', name: 'render_ui_block', args });
+const registry = (o = {}) => new ToolRegistry([uiBlockTool({ getBrief: () => BRIEF, investor: INVESTOR, lessons: new LessonBook(memoryStorage()), ...o })]);
 
 test('all 9 design templates exist and every example is valid', () => {
   assert.deepEqual(Object.keys(TEMPLATES), ['yield', 'supply', 'cash_flow', 'value', 'area', 'offer', 'hold', 'property', 'overlays']);
   for (const [name, t] of Object.entries(TEMPLATES)) assert.deepEqual(validate(t.schema, t.example), [], name);
 });
 
-test('a valid block renders and concludes the turn', async () => {
-  const reg = new ToolRegistry([uiBlockTool({ lessons: new LessonBook(memoryStorage()) })]);
-  const out = await reg.execute(call('value', TEMPLATES.value.example));
+test('every card builds from the brief and validates — the agent only picks the template', () => {
+  for (const name of Object.keys(TEMPLATES)) {
+    const body = cardFromBrief(name, BRIEF, INVESTOR);
+    assert.deepEqual(validate(TEMPLATES[name].schema, body), [], `${name}: ${JSON.stringify(body)}`);
+  }
+});
+
+test('card numbers come from the data', () => {
+  const cf = cardFromBrief('cash_flow', BRIEF, INVESTOR);
+  assert.equal(cf.headline, '−$181');
+  assert.deepEqual(cf.lines.map((l) => l.weekly), [775, -799, -112, -45]);
+  assert.equal(cardFromBrief('yield', BRIEF, INVESTOR).headline, '5.2%');
+  assert.equal(cardFromBrief('supply', BRIEF, INVESTOR).headline, '504');
+  assert.deepEqual(offerLadder(BRIEF, INVESTOR), { open: 715000, aim: 745000, walk_away: 800000 });
+});
+
+test('template-only call renders, returns the filled body, and concludes', async () => {
+  const out = await registry().execute(call({ template: 'cash_flow' }));
   assert.equal(out.error, false);
   assert.equal(out.concludes, true);
-  assert.equal(JSON.parse(out.result).rendered, true);
+  const res = JSON.parse(out.result);
+  assert.equal(res.rendered, true);
+  assert.equal(res.body.headline, '−$181');
 });
 
-test('a wrong body is told exactly what to fix, with the field guide + example, and does not conclude', async () => {
-  const reg = new ToolRegistry([uiBlockTool({ lessons: new LessonBook(memoryStorage()) })]);
-  const bad = { headline: '5.2%', rows: [{ label: 'This property', value: 5.2, kind: 'mine' }], caption: 'x', sources: [] };
-  const out = await reg.execute(call('yield', bad));
-  assert.equal(out.error, true);
-  assert.equal(out.concludes, false);
-  const env = JSON.parse(out.result);
-  assert.equal(env.error_code, 'invalid_block_body');
-  assert.equal(env.retryable, true);
-  assert.match(env.error, /threshold_pct/); // missing required
-  assert.match(env.error, /value_pct/); // missing in row
-  assert.match(env.error, /value/); // unexpected key
-  assert.match(env.error, /"mine"/); // bad enum
-  assert.match(env.error, /sources/); // too few items
-  assert.match(env.hint, /Valid example body: \{"headline":"5\.2%"/);
-  assert.match(env.hint, /threshold_pct: number 0–20/);
-});
-
-test('unknown template is rejected by the schema with the allowed list', async () => {
-  const reg = new ToolRegistry([uiBlockTool({ lessons: new LessonBook(memoryStorage()) })]);
-  const out = await reg.execute(call('pie_chart', {}));
-  assert.equal(out.error, true);
-  assert.match(JSON.parse(out.result).hint, /yield/);
-});
-
-test('learning: mistakes are recorded and fed back as lessons', async () => {
-  const storage = memoryStorage();
-  const lessons = new LessonBook(storage);
-  const reg = new ToolRegistry([uiBlockTool({ lessons })]);
-  await reg.execute(call('cash_flow', { headline: '−$181', lines: [{ label: 'Rent', amount: 775 }], caption: 'x', sources: ['a'] }));
-  await reg.execute(call('cash_flow', { headline: '−$181', lines: [{ label: 'Rent', amount: 775 }, { label: 'Interest', amount: -799 }], caption: 'x', sources: ['a'] }));
-  const text = await new LessonBook(storage).text(); // a fresh book reads what was stored
-  assert.match(text, /cash_flow: body\.lines\[\]: 'weekly' is a required property \(3×\)/); // 3 items across 2 calls → one lesson
-  assert.match(text, /amount/);
-  assert.equal(await new LessonBook(memoryStorage()).text(), '');
-});
-
-test('the guide documents every template', () => {
-  for (const name of Object.keys(TEMPLATES)) assert.match(templateGuide(name), /Valid example body/);
-});
-
-test('robust inputs: body as a JSON string and the design name both work', async () => {
-  const { normaliseBlockArgs, resolveTemplate } = await import('../src/agent/ui-blocks.js');
-  const reg = new ToolRegistry([uiBlockTool({ lessons: new LessonBook(memoryStorage()) })]);
-  const asString = await reg.execute(call('value', JSON.stringify(TEMPLATES.value.example)));
-  assert.equal(asString.error, false);
-  const byTitle = await reg.execute(call('show_estimated_value', TEMPLATES.value.example));
-  assert.equal(byTitle.error, false);
-  assert.equal(resolveTemplate('show_yield_comparison'), 'yield');
+test('caption + offer overrides; design names resolve', async () => {
+  const res = JSON.parse((await registry().execute(call({ template: 'show_offer_ladder', caption: 'Start low.', offer: { aim: 740000 } }))).result);
+  assert.equal(res.template, 'offer');
+  assert.equal(res.body.aim, 740000);
+  assert.equal(res.body.caption, 'Start low.');
   assert.equal(resolveTemplate('Cash flow'), 'cash_flow');
-  assert.deepEqual(normaliseBlockArgs({ template: 'show_estimated_value', body: JSON.stringify({ a: 1 }) }), { template: 'value', body: { a: 1 } });
-  const unknown = JSON.parse((await reg.execute(call('pie_chart', {}))).result);
+});
+
+test('self-documenting failures', async () => {
+  const unknown = JSON.parse((await registry().execute(call({ template: 'pie_chart' }))).result);
   assert.equal(unknown.error_code, 'unknown_template');
   assert.match(unknown.hint, /cash_flow — "What will it cost me\?"/);
-  const badString = JSON.parse((await reg.execute(call('value', '{not json'))).result);
-  assert.match(badString.hint, /Valid example body/);
+
+  const noBrief = JSON.parse((await registry({ getBrief: () => null }).execute(call({ template: 'yield' }))).result);
+  assert.equal(noBrief.error_code, 'no_brief');
+  assert.match(noBrief.hint, /get_listing_brief/);
+
+  const noAvm = { ...BRIEF, price: { ...BRIEF.price, value: null } };
+  const unavailable = await registry({ getBrief: () => noAvm }).execute(call({ template: 'value' }));
+  assert.equal(unavailable.error, true);
+  assert.equal(JSON.parse(unavailable.result).error_code, 'data_unavailable');
+  assert.equal(unavailable.concludes, false);
+});
+
+test('learning: a bad caption is recorded as a lesson', async () => {
+  const storage = memoryStorage();
+  const reg = registry({ lessons: new LessonBook(storage) });
+  const out = await reg.execute(call({ template: 'yield', caption: 'x'.repeat(400) }));
+  assert.equal(out.error, true);
+  assert.match(await new LessonBook(storage).text(), /yield: body\.caption: .* is too long \(1×\)/);
+});
+
+test('cards for a saved property come from memory', async () => {
+  const saved = { ...BRIEF, property: { ...BRIEF.property, address: '105/8 SAM SING STREET, WATERLOO', gnaf_id: 'GANSW705022222' } };
+  const memory = { find: async (ref) => (ref === 'GANSW705022222' ? { brief: saved } : null) };
+  const res = JSON.parse((await registry({ memory }).execute(call({ template: 'property', property: 'GANSW705022222' }))).result);
+  assert.equal(res.body.headline, '105/8 Sam Sing Street');
+  const miss = JSON.parse((await registry({ memory }).execute(call({ template: 'property', property: 'nowhere' }))).result);
+  assert.equal(miss.error_code, 'not_found');
 });

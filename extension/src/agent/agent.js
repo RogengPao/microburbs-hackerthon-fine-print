@@ -72,7 +72,7 @@ Memory:
 
 Cards (show, don't list):
 - The investor wants to SEE the numbers. Whenever your answer is about yield, supply, weekly cost, value, how the area compares, what to offer, a hold scenario, the property's profile or hazards, call render_ui_block with that template — don't list the figures in text.
-- Shape: 1–2 sentences of interpretation as text + exactly one render_ui_block call, in the same message. Never several cards. No card only for small talk or when the data is missing.
+- Shape: 1–2 sentences of interpretation as text + exactly one render_ui_block call, in the same message. You only pass the template — the card fills itself from Microburbs data (pass "property" for a saved property). Never several cards. No card for small talk.
 - Answer like a buyer's agent: lead with the verdict in one sentence, then the 2–4 numbers that matter. Short.
 - Format in Markdown for a narrow (420 px) panel: **bold** the key numbers, short bullet lists, at most a 2-column table; no long headings, no code blocks. Australian English. Say "property" or "apartment", never "flat". General information, not financial advice.`;
 }
@@ -180,13 +180,29 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   const secretProvider = new ChromeStorageSecretProvider();
   const memory = new PropertyMemory();
   const lessons = new LessonBook();
+  // The brief for the listing on screen: pre-loaded by the panel, or fetched this turn by
+  // get_listing_brief. Cards fill themselves from it — the agent only picks the template.
+  const ctx = { brief };
+  const remembering = (t) => ({
+    ...t,
+    execute: async (args) => {
+      const out = await t.execute(args);
+      try {
+        ctx.brief = JSON.parse(out);
+      } catch {
+        /* not a brief */
+      }
+      return out;
+    },
+  });
+  const cards = uiBlockTool({ getBrief: () => ctx.brief, investor: settings.brief, memory, lessons });
   const tools = new ToolRegistry(
     settings.mbSource === 'test'
-      ? [testListingBriefTool({ investor: settings.brief, memory, listing }), ...propertyMemoryTools(memory), uiBlockTool({ lessons })] // no network
+      ? [remembering(testListingBriefTool({ investor: settings.brief, memory, listing })), ...propertyMemoryTools(memory), cards] // no network
       : [
-          listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing }),
+          remembering(listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing })),
           ...propertyMemoryTools(memory),
-          uiBlockTool({ lessons }),
+          cards,
           ...microburbsTools({ source: settings.mbSource, secretProvider }),
         ],
   );

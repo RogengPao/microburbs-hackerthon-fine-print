@@ -375,25 +375,231 @@ export function resolveTemplate(name) {
   return Object.keys(TEMPLATES).find((k) => TEMPLATES[k].title === n || n === `show_${k}`) ?? null;
 }
 
+// ---------------------------------------------------------------- cards from data
+// The agent only CHOOSES a card. Its body is built here, in code, from the listing
+// brief (Microburbs) — so every number is real and the payload can't be malformed.
+
+const K = (n) => (n == null ? null : n >= 1e6 ? `$${(n / 1e6).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(n / 1000)}K`);
+const r5k = (n) => Math.round(n / 5000) * 5000;
+const firstPart = (address) => String(address ?? '').split(',')[0].replace(/^UNIT\s+/i, '').trim();
+const titleCase = (s) => String(s ?? '').toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+
+class Unavailable extends Error {}
+const need = (cond, why) => {
+  if (!cond) throw new Unavailable(why);
+};
+
+/** Weekly holding cost at a given price (same maths as the brief). */
+function weeklyCostAt(price, brief, investor, rate = 0.06) {
+  const deposit = investor?.deposit ?? 0;
+  const strata = brief.weekly_cost?.strata ?? 0;
+  const rates = brief.weekly_cost?.rates_insurance ?? 45;
+  return (Math.max(0, price - deposit) * rate) / 52 + strata + rates - (brief.rent?.weekly ?? 0);
+}
+
+/** Offer ladder from the data (the agent may override open/aim/walk_away). */
+export function offerLadder(brief, investor) {
+  const asking = brief.price?.asking;
+  const est = brief.price?.value?.estimate;
+  const likely = brief.price?.likely_sale;
+  need(asking || est, 'no asking price or estimate for this property');
+  const anchor = est ?? asking * 0.95;
+  const ask = asking ?? est;
+  const aim = r5k((anchor + ask) / 2);
+  return {
+    open: r5k(Math.min(anchor, aim * 0.96)),
+    aim,
+    walk_away: r5k(Math.min(investor?.budget ?? Infinity, likely ?? ask * 1.05)),
+  };
+}
+
+const BUILDERS = {
+  yield(b, inv) {
+    const r = b.returns ?? {};
+    const mine = r.gross_yield_pct_at_asking ?? r.gross_yield_pct_at_likely;
+    need(mine != null, 'no rent estimate or price, so no yield');
+    const rows = [
+      r.gross_yield_pct_at_asking != null && { label: 'This property', value_pct: r.gross_yield_pct_at_asking, kind: 'this' },
+      r.gross_yield_pct_at_likely != null && { label: `At likely ${K(b.price?.likely_sale)}`, value_pct: r.gross_yield_pct_at_likely, kind: 'likely' },
+      b.market?.suburb_unit_yield_pct != null && { label: `${titleCase(b.property?.suburb).replace(/\s*\(.*\)/, '')} units`, value_pct: b.market.suburb_unit_yield_pct, kind: 'area' },
+      inv?.minYield != null && { label: 'Your minimum', value_pct: inv.minYield, kind: 'minimum' },
+    ].filter(Boolean);
+    const diff = inv?.minYield != null ? Math.round((mine - inv.minYield) * 10) / 10 : null;
+    return {
+      headline: `${mine}%`,
+      ...(diff != null && { badge: { text: `${diff >= 0 ? '+' : '−'}${Math.abs(diff)} pts vs your ${inv.minYield}%`, tone: diff >= 0 ? 'good' : 'warn' } }),
+      rows,
+      threshold_pct: inv?.minYield ?? 4,
+      caption: `${b.rent.comparables} ${b.property?.beds ?? ''}-bed rentals ≤ 1 km, median $${b.rent.weekly}/wk ($${b.rent.low}–${b.rent.high}).`.replace(' -bed', ''),
+      sources: ['listings/for-rent', 'market/yield-pct'],
+    };
+  },
+  supply(b) {
+    const s = b.supply ?? {};
+    need(s.largest?.length, 'no development applications with stated dwellings within 1 km');
+    return {
+      headline: String(s.new_dwellings_stated),
+      badge: s.build_to_rent_dwellings > 0 ? { text: 'build-to-rent nearby', tone: 'warn' } : { text: `${s.applications} applications`, tone: 'neutral' },
+      projects: s.largest.slice(0, 5).map((p) => ({ dwellings: p.dwellings, km: p.km, build_to_rent: p.build_to_rent, label: firstPart(p.address).slice(0, 48) })),
+      caption: `${s.applications} applications within ${s.radius_km ?? 1} km state ${s.new_dwellings_stated} new homes${s.build_to_rent_dwellings ? `, ${s.build_to_rent_dwellings} of them build-to-rent (they compete for tenants)` : ''}. DA stage is unknown.`,
+      sources: ['development/da-list'],
+    };
+  },
+  cash_flow(b) {
+    const w = b.weekly_cost ?? {};
+    need(w.net_before_tax != null, 'no weekly cost (needs a price and a rent estimate)');
+    const basis = b.returns?.price_basis;
+    return {
+      headline: `${w.net_before_tax > 0 ? '−' : '+'}$${Math.abs(Math.round(w.net_before_tax))}`,
+      lines: [
+        { label: 'Rent', weekly: Math.round(w.rent) },
+        { label: 'Loan interest', weekly: -Math.round(w.interest) },
+        w.strata && { label: 'Strata', weekly: -Math.round(w.strata), note: `${titleCase(b.property?.suburb).replace(/\s*\(.*\)/, '')} median` },
+        { label: 'Rates + insurance', weekly: -Math.round(w.rates_insurance) },
+      ].filter(Boolean),
+      caption: `Per week before tax at ${b.returns?.price_basis_is === 'likely_sale' ? 'the likely' : 'a'} ${K(basis)}: ${w.assumptions}.`,
+      sources: ['listings/for-rent', 'market/strata-levies'],
+    };
+  },
+  value(b) {
+    const v = b.price?.value;
+    need(v?.estimate, 'Microburbs has no automated valuation for this property');
+    return {
+      headline: K(v.estimate),
+      estimate: v.estimate,
+      low: v.low,
+      high: v.high,
+      confidence: v.confidence,
+      ...(b.price.asking && { asking: b.price.asking }),
+      ...(b.price.likely_sale && { likely: b.price.likely_sale }),
+      caption: 'A computer valuation from recent nearby sales — a second opinion on price, not a bank valuation.',
+      sources: ['valuation/avm'],
+    };
+  },
+  area(b) {
+    const m = b.market ?? {};
+    const price = b.price?.likely_sale ?? b.price?.asking;
+    const metrics = [
+      b.returns?.gross_yield_pct_at_asking != null && m.suburb_unit_yield_pct != null && { label: 'Gross yield', here: b.returns.gross_yield_pct_at_asking, area: m.suburb_unit_yield_pct, higher_is_better: true, unit: '%' },
+      price && m.suburb_median_unit_price && { label: 'Price', here: price, area: m.suburb_median_unit_price, higher_is_better: false, unit: '$' },
+      b.rent?.weekly && b.rent?.suburb_median_unit && { label: 'Rent / wk', here: b.rent.weekly, area: b.rent.suburb_median_unit, higher_is_better: true, unit: '$' },
+    ].filter(Boolean);
+    need(metrics.length >= 2, 'not enough suburb market data to compare');
+    const better = metrics.filter((x) => (x.higher_is_better ? x.here >= x.area : x.here <= x.area)).length;
+    return {
+      headline: `${better} better, ${metrics.length - better} worse`,
+      compare_to: `${titleCase(b.property?.suburb).replace(/\s*\(.*\)/, '')} unit median`,
+      metrics,
+      caption: `This property against the suburb's unit medians${m.unit_days_on_market ? `; units take ${m.unit_days_on_market} days to sell here` : ''}.`,
+      sources: ['market/all'],
+    };
+  },
+  offer(b, inv, extra) {
+    const ladder = { ...offerLadder(b, inv), ...(extra?.offer ?? {}) };
+    const a = b.price?.agency;
+    return {
+      headline: K(ladder.aim),
+      ...ladder,
+      ...(b.price?.value?.estimate && { estimate: b.price.value.estimate }),
+      ...(b.price?.asking && { asking: b.price.asking }),
+      ...(b.price?.likely_sale && { likely: b.price.likely_sale }),
+      caption: a ? `Agency: ${a.name}, "${String(a.cohort).toLowerCase()}" — ${a.underquote_rate_pct}% of ${a.sales} sales went over quote, by a median ${a.median_over_quote_pct}%.` : 'Aim between the estimate and the asking price; walk away at your budget or the likely sale.',
+      sources: ['valuation/agent-quoting', 'valuation/avm'],
+    };
+  },
+  hold(b, inv, extra) {
+    need(b.rent?.weekly && (b.price?.asking || b.price?.likely_sale), 'needs a price and a rent estimate');
+    const years = inv?.holdYears ?? 10;
+    const growth = 0.03;
+    const gain = (p) => Math.round(p * ((1 + growth) ** years - 1) - weeklyCostAt(p, b, inv) * 52 * years);
+    const ladder = (() => {
+      try {
+        return { ...offerLadder(b, inv), ...(extra?.offer ?? {}) };
+      } catch {
+        return null;
+      }
+    })();
+    const scenarios = [
+      ladder && { label: `Negotiate to ${K(ladder.aim)}`, gain: gain(ladder.aim), kind: 'best' },
+      b.price?.asking && { label: `Pay the asking ${K(b.price.asking)}`, gain: gain(b.price.asking), kind: 'base' },
+      b.price?.likely_sale && { label: `Pay the likely ${K(b.price.likely_sale)}`, gain: gain(b.price.likely_sale), kind: 'worst' },
+    ].filter(Boolean);
+    need(scenarios.length >= 2, 'not enough price points for scenarios');
+    const base = scenarios.find((x) => x.kind === 'base') ?? scenarios[0];
+    return {
+      headline: `${base.gain < 0 ? '−' : ''}${K(Math.abs(base.gain))}`,
+      badge: { text: 'illustrative', tone: 'neutral' },
+      years,
+      scenarios,
+      caption: `Gain over ${years} years after rent and holding costs, before tax. Assumes ${growth * 100}% growth a year and 6% interest.`,
+      sources: ['valuation/avm', 'listings/for-rent'],
+    };
+  },
+  property(b) {
+    const p = b.property ?? {};
+    const history = [
+      b.price?.last_sold && { date: String(b.price.last_sold.date).slice(0, 10), price: b.price.last_sold.price, kind: 'sold' },
+      b.price?.value?.estimate && { date: String(b.price.value.as_of ?? '').slice(0, 10) || 'now', price: b.price.value.estimate, kind: 'estimate' },
+      b.price?.likely_sale && { date: 'now', price: b.price.likely_sale, kind: 'likely' },
+    ].filter(Boolean);
+    return {
+      headline: titleCase(firstPart(p.address)).slice(0, 28),
+      gnaf_id: String(p.gnaf_id).slice(0, 20),
+      facts: [
+        { label: 'Bed/bath/car', value: `${p.beds ?? '?'} / ${p.baths ?? '?'} / ${p.parking ?? '?'}` },
+        { label: 'Type', value: titleCase(String(p.type ?? 'unit').split('/')[0].trim()).slice(0, 24) },
+        { label: 'Suburb', value: titleCase(p.suburb).replace(/\s*\(.*\)/, '').slice(0, 24) },
+      ],
+      ...(history.length && { history }),
+      sources: ['properties/basics', 'history/all'],
+    };
+  },
+  overlays(b) {
+    const risks = b.risks ?? [];
+    const pretty = { hv_power_line: 'High-voltage power line', flood: 'Flood', heritage: 'Heritage', bushfire: 'Bushfire', public_housing: 'Public housing' };
+    const items = risks.length
+      ? risks.slice(0, 8).map((r) => ({ name: (pretty[r.name] ?? titleCase(r.name.replace(/_/g, ' '))).slice(0, 36), detail: String(r.detail ?? '').replace(/^Not on property;\s*/i, '').slice(0, 36), status: r.on_property ? 'on_property' : 'nearby' }))
+      : [{ name: 'No hazards flagged', detail: 'on or near the title', status: 'clear' }];
+    return {
+      headline: risks.length ? `${risks.length} thing${risks.length > 1 ? 's' : ''} to check` : 'Clear.',
+      items,
+      sources: ['properties/risks/all'],
+    };
+  },
+};
+
+/** template + brief → a card body (throws Unavailable when the data isn't there). */
+export function cardFromBrief(template, brief, investor = {}, extra = {}) {
+  const body = BUILDERS[template](brief, investor, extra);
+  if (extra.caption) body.caption = extra.caption;
+  return body;
+}
+
 // ---------------------------------------------------------------- the tool
-export function uiBlockTool({ lessons = new LessonBook() } = {}) {
+/**
+ * @param {Object} o
+ * @param {() => Object|null} o.getBrief   the brief for the listing on screen (pre-loaded or fetched this turn)
+ * @param {Object} [o.investor]            the investor brief (budget, deposit, minYield, holdYears)
+ * @param {{ find(ref: string): Promise<Object|null> }} [o.memory]  saved properties, for cards about earlier listings
+ */
+export function uiBlockTool({ getBrief = () => null, investor = {}, memory = null, lessons = new LessonBook() } = {}) {
   return tool({
     name: 'render_ui_block',
     label: 'Drawing a card',
     concludes: true,
-    description: `Show ONE visual card under your reply — the investor sees a chart instead of a list of figures. Write your 1–2 sentence answer as normal text in the same message, then call this once. Fill body from the listing brief (never invent numbers). Use EXACTLY the field names below — no others. "headline" is the short big number as displayed (e.g. "−$181", "5.2%", "$713K") — never a sentence. Money fields are whole dollars as numbers (852500, not "$852K").
-Templates and their body fields (? = optional):
-${allGuides()}
-If a body is wrong you get back exactly what to fix plus a valid example; correct it and call again.`,
-    // Loose outer schema on purpose: template + body are checked INSIDE execute so every
-    // mistake gets the self-documenting error (generic arg validation can't teach).
+    description: `Show ONE visual card under your reply — the investor sees a chart instead of a list of figures. You only CHOOSE the card: it fills itself from Microburbs data for the listing on screen (or for a saved property if you pass "property"). Write your 1–2 sentence interpretation as normal text in the same message, then call this once.
+Templates:
+${templateList()}
+Optional: "caption" (1–2 sentences under the card; default is a factual line), "property" (GNAF id or address of a SAVED property to show instead of the listing on screen), "offer" ({open, aim, walk_away} whole dollars — only to override the computed offer ladder).`,
     input_schema: {
       type: 'object',
       properties: {
         template: { type: 'string', description: `which card: ${Object.keys(TEMPLATES).join(' | ')}` },
-        body: { type: ['object', 'string'], description: "the card's data as a JSON object — shape depends on the template (see the template's field guide)" },
+        caption: { type: 'string', description: 'optional 1–2 sentences under the card (≤320 chars)' },
+        property: { type: 'string', description: 'optional: GNAF id or address of a saved property (default: the listing on screen)' },
+        offer: { type: 'object', description: 'optional override for the offer card: {open, aim, walk_away} in whole dollars' },
       },
-      required: ['template', 'body'],
+      required: ['template'],
     },
     execute: async (args) => {
       const template = resolveTemplate(args.template);
@@ -405,26 +611,43 @@ If a body is wrong you get back exactly what to fix plus a valid example; correc
           error_code: 'unknown_template',
         });
       }
-      let body = args.body;
-      if (typeof body === 'string') {
-        // models often send nested objects as a JSON string — accept it, but teach the right shape
-        try {
-          body = JSON.parse(body);
-        } catch {
-          await lessons.record(template, ['body was a string that is not valid JSON — pass body as an object']);
-          throw new ToolError('render_ui_block: body must be a JSON object, not a string', {
-            hint: `Pass body as an object.\n${templateGuide(template)}`,
+      // which property's data?
+      let brief = getBrief();
+      if (args.property) {
+        const saved = await memory?.find(args.property);
+        if (!saved?.brief) {
+          throw new ToolError(`render_ui_block: no saved property matches "${args.property}"`, {
+            hint: 'use recall_properties to find the GNAF id, or omit "property" for the listing on screen',
             retryable: true,
-            error_code: 'invalid_block_body',
+            error_code: 'not_found',
           });
         }
+        brief = saved.brief;
       }
-      const t = TEMPLATES[template];
-      const problems = validate(t.schema, body).map((p) => p.replace(/^<root>/, 'body').replace(/^(?!body)/, 'body.'));
+      if (!brief) {
+        throw new ToolError('render_ui_block: no listing data yet', {
+          hint: 'call get_listing_brief with the listing address first, then render the card',
+          retryable: true,
+          error_code: 'no_brief',
+        });
+      }
+      let body;
+      try {
+        body = cardFromBrief(template, brief, investor, { caption: args.caption, offer: args.offer });
+      } catch (e) {
+        if (!(e instanceof Unavailable)) throw e;
+        throw new ToolError(`render_ui_block: can't draw "${template}" — ${e.message}`, {
+          hint: 'pick a different card, or say in text that this data is not available',
+          retryable: false,
+          error_code: 'data_unavailable',
+        });
+      }
+      // safety net: code-built bodies should always validate; overrides/captions might not
+      const problems = validate(TEMPLATES[template].schema, body).map((p) => p.replace(/^<root>/, 'body').replace(/^(?!body)/, 'body.'));
       if (problems.length) {
         await lessons.record(template, problems);
-        throw new ToolError(`render_ui_block: the "${template}" body is invalid — ${problems.join('; ')}`, {
-          hint: `Fix exactly these problems and call render_ui_block again with the corrected body.\n${templateGuide(template)}`,
+        throw new ToolError(`render_ui_block: the "${template}" card is invalid — ${problems.join('; ')}`, {
+          hint: `Usually a too-long caption or a bad offer override. ${templateGuide(template)}`,
           retryable: true,
           error_code: 'invalid_block_body',
         });
@@ -432,7 +655,9 @@ If a body is wrong you get back exactly what to fix plus a valid example; correc
       return JSON.stringify({
         rendered: true,
         template,
-        note: 'The card is now shown to the investor. If you have not already written your answer beside this call, reply with ONE or TWO short sentences interpreting the card — no new analysis, no headings, no repeating its numbers.',
+        property: brief.property?.address ?? null,
+        body, // the panel draws from this; you can quote it
+        note: 'The card is now shown to the investor. If you have not already written your answer beside this call, reply with ONE or TWO short sentences interpreting it — no new analysis, no headings.',
       });
     },
   });

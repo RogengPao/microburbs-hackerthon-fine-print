@@ -5,6 +5,7 @@ import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, TOOL_LABELS } from
 import { readTab } from '../agent/page-context.js';
 import { addressFromPage } from '../agent/address.js';
 import { renderMarkdown } from './markdown.js';
+import { renderBlock } from './blocks.js';
 
 const $ = (id) => document.getElementById(id);
 const thread = $('thread');
@@ -63,11 +64,30 @@ function renderMessage(m) {
     firstReadOpen = false;
   }
   else if (m.role === 'tool_request') {
-    if (m.text) thread.append(mdBubble('msg agent pre', m.text));
-    for (const c of m.calls) thread.append(toolRow(c.id, c.name, c.args));
+    // prose beside ONLY card calls is the reply itself (render_ui_block concludes), not a preamble
+    const onlyCards = m.calls.every((c) => c.name === 'render_ui_block');
+    if (m.text) thread.append(mdBubble(onlyCards ? 'msg agent' : 'msg agent pre', m.text));
+    for (const c of m.calls) {
+      if (c.name === 'render_ui_block') {
+        // placeholder until the response says the body was valid
+        const slot = el('div', 'ub-slot');
+        slot.dataset.call = c.id;
+        slot.dataset.args = JSON.stringify(c.args ?? {});
+        thread.append(slot);
+      } else {
+        thread.append(toolRow(c.id, c.name, c.args));
+      }
+    }
   } else if (m.role === 'tool_response') {
     const row = thread.querySelector(`[data-call="${CSS.escape(m.call_id)}"]`);
-    if (row) fillTool(row, m.text, m.is_error);
+    if (row?.classList.contains('ub-slot')) {
+      // valid → draw the card; invalid → drop it (the agent corrects and calls again)
+      if (m.is_error) row.remove();
+      else {
+        const { template, body } = JSON.parse(row.dataset.args);
+        row.replaceWith(renderBlock(template, body));
+      }
+    } else if (row) fillTool(row, m.text, m.is_error);
   }
   lastRole = m.role;
 }

@@ -14,6 +14,7 @@ import {
 import { addressFromPage, formatAddress } from './address.js';
 import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
 import { testBrief, testListingBriefTool } from './test-data.js';
+import { LessonBook, uiBlockTool } from './ui-blocks.js';
 import { microburbsTools } from './microburbs-tools.js';
 import { openAppDb, PropertyMemory, propertyMemoryTools } from './property-memory.js';
 import { pageContextText } from './page-context.js';
@@ -45,6 +46,9 @@ Memory:
 - Every property you analyse with get_listing_brief is saved automatically, with its listing link and main image. You don't need to save anything yourself.
 - Use recall_properties to compare this listing with ones the investor looked at before ("cheaper to hold than the Waterloo one you saw yesterday"), to rank what they've seen (by yield, weekly cost or price), or to find a property they mention by street or suburb. Use get_saved_property for the full saved brief of one of them.
 - When you mention a saved property, give its address and when it was analysed. Saved figures are from that day; say so if they may be stale.
+
+Cards:
+- When a question maps to a card (yield, supply, cash flow, value, area, offer, hold, property, hazards), answer in 1–2 sentences AND call render_ui_block once with that template, filled from the brief. One card per reply, never several. No card for small talk or when the data is missing.
 - Answer like a buyer's agent: lead with the verdict in one sentence, then the 2–4 numbers that matter. Short.
 - Format in Markdown for a narrow (420 px) panel: **bold** the key numbers, short bullet lists, at most a 2-column table; no long headings, no code blocks. Australian English. Say "property" or "apartment", never "flat". General information, not financial advice.`;
 }
@@ -149,12 +153,14 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   const adapter = adapterFor(snapshot, { apiKey: await llmKey(settings.provider), ...(settings.provider === 'openrouter' ? { appTitle: 'Fine Print' } : {}) });
   const secretProvider = new ChromeStorageSecretProvider();
   const memory = new PropertyMemory();
+  const lessons = new LessonBook();
   const tools = new ToolRegistry(
     settings.mbSource === 'test'
-      ? [testListingBriefTool({ investor: settings.brief, memory, listing }), ...propertyMemoryTools(memory)] // no network
+      ? [testListingBriefTool({ investor: settings.brief, memory, listing }), ...propertyMemoryTools(memory), uiBlockTool({ lessons })] // no network
       : [
           listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing }),
           ...propertyMemoryTools(memory),
+          uiBlockTool({ lessons }),
           ...microburbsTools({ source: settings.mbSource, secretProvider }),
         ],
   );
@@ -171,6 +177,9 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   if (brief) {
     ephemeralContext.push(message({ role: 'system', text: `Listing brief for the property on screen (from Microburbs; computed, authoritative — quote these numbers):\n${JSON.stringify(brief)}` }));
   }
+  // Learning: past render_ui_block mistakes ride along so they stop recurring.
+  const lessonText = await lessons.text();
+  if (lessonText) ephemeralContext.push(message({ role: 'system', text: lessonText }));
   // Turn-specific instructions go LAST so they're the freshest thing the model reads.
   if (instructions) ephemeralContext.push(message({ role: 'system', text: instructions }));
   return runTurn(snapshot, store, adapter, tools, {
@@ -187,6 +196,7 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
 export const TOOL_LABELS = new ToolRegistry([
   listingBriefTool({ source: 'api' }),
   ...propertyMemoryTools(null),
+  uiBlockTool({ lessons: new LessonBook(null) }),
   ...microburbsTools({ source: 'api' }),
 ]).labels();
 

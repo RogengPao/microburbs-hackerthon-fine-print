@@ -1,0 +1,17 @@
+{
+  "name": "fine-print-address-pipeline",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Address reading + strict matching for the Fine Print extension. Builds extension/src/agent/address-pipeline.js.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

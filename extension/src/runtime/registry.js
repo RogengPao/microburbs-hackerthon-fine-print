@@ -20,7 +20,9 @@ export function err(message, { hint = '', retryable = false, error_code = 'tool_
 /**
  * @typedef {Object} Tool
  * @property {string} name
- * @property {string} description
+ * @property {string} description  for the MODEL: when and how to use the tool
+ * @property {string|null} label  for PEOPLE: short present-tense activity line ("Checking rentals within 1 km").
+ *   Carried on tool events so a UI/activity feed reads as intent, not function names. Never sent to the model.
  * @property {Object} input_schema
  * @property {'sync'|'deferred'} delivery
  * @property {((args: Object) => (string|Promise<string>))|null} execute  null for deferred tools
@@ -29,9 +31,9 @@ export function err(message, { hint = '', retryable = false, error_code = 'tool_
  */
 
 /** @returns {Tool} */
-export function tool({ name, description, input_schema = { type: 'object', properties: {} }, delivery = 'sync', execute = null, concludes = false, validateArgs = true }) {
+export function tool({ name, description, label = null, input_schema = { type: 'object', properties: {} }, delivery = 'sync', execute = null, concludes = false, validateArgs = true }) {
   if (delivery === 'sync' && typeof execute !== 'function') throw new TypeError(`sync tool ${name} needs execute()`);
-  return { name, description, input_schema, delivery, execute, concludes, validateArgs };
+  return { name, description, label, input_schema, delivery, execute, concludes, validateArgs };
 }
 
 export class ToolRegistry {
@@ -48,6 +50,16 @@ export class ToolRegistry {
 
   get(name) {
     return this.tools.get(name) ?? null;
+  }
+
+  /** People-facing label for a tool (falls back to null; UIs fall back to the name). */
+  label(name) {
+    return this.tools.get(name)?.label ?? null;
+  }
+
+  /** name → label for every registered tool (for rendering stored transcripts). */
+  labels() {
+    return Object.fromEntries([...this.tools.values()].map((t) => [t.name, t.label ?? null]));
   }
 
   schemas() {

@@ -91,3 +91,34 @@ test('manifest gate: writes must declare idempotent; sync timeouts are bounded',
   assert.throws(() => parseManifest({ ...avmManifest, timeout_seconds: 60 }), ManifestError);
   assert.equal(parseManifest(avmManifest).idempotent, true);
 });
+
+test('labels: on the tool + events, never in the model-facing schema', async () => {
+  const { tool, ToolRegistry, runTurn, MemoryTranscript, MockAdapter, agentSnapshot, message } = await import('../src/runtime/index.js');
+  const t = tool({ name: 'get_rent', label: 'Checking rentals nearby', description: 'model-facing text', execute: () => '{"rent":775}' });
+  const reg = new ToolRegistry([t]);
+  assert.equal(reg.label('get_rent'), 'Checking rentals nearby');
+  assert.deepEqual(reg.labels(), { get_rent: 'Checking rentals nearby' });
+  assert.deepEqual(Object.keys(reg.schemas()[0]).sort(), ['description', 'input_schema', 'name']);
+
+  const { toolCall } = await import('../src/runtime/contract.js');
+  const adapter = new MockAdapter({ script: [{ tool_calls: [toolCall({ id: 'c1', name: 'get_rent', args: {} })] }, { text: 'About $775 a week.' }] });
+  const events = [];
+  await runTurn(agentSnapshot({ provider: 'mock', model: 'm', system_base: 's' }), new MemoryTranscript(), adapter, reg, {
+    inbound: message({ role: 'user', text: 'rent?' }),
+    onEvent: (e) => events.push(e),
+  });
+  const start = events.find((e) => e.event === 'tool_start');
+  const done = events.find((e) => e.event === 'tool');
+  assert.equal(start.label, 'Checking rentals nearby');
+  assert.equal(done.label, 'Checking rentals nearby');
+  assert.ok(events.indexOf(start) < events.indexOf(done));
+});
+
+test('declarative manifests carry a label through', async () => {
+  const { declarativeTool, StaticSecretProvider } = await import('../src/runtime/index.js');
+  const t = declarativeTool(
+    { name: 'x', label: 'Finding the property', description: 'd', kind: 'declarative', allowed_hosts: ['api.example.com'], request: { url: 'https://api.example.com/x' } },
+    { secretProvider: new StaticSecretProvider({}) },
+  );
+  assert.equal(t.label, 'Finding the property');
+});

@@ -1,0 +1,139 @@
+{
+  "ok": true,
+  "brief": {
+    "property": {
+      "gnaf_id": "GANSW710358627",
+      "address": "UNIT 38/3 Victoria Park Parade, Zetland",
+      "suburb": "Zetland",
+      "type": "apartment / unit / flat",
+      "beds": 1,
+      "baths": 1,
+      "parking": 0
+    },
+    "price": {
+      "asking": 775000,
+      "likely_sale": 852500,
+      "agency": {
+        "name": "Stone Real Estate - Newtown",
+        "cohort": "Severe Underquoter",
+        "underquote_rate_pct": 70.6,
+        "median_over_quote_pct": 10,
+        "sales": 17
+      },
+      "value": {
+        "estimate": 712500,
+        "low": 555750,
+        "high": 869250,
+        "confidence": 82,
+        "as_of": "2026-07-27"
+      },
+      "last_sold": {
+        "date": "2022-10-21",
+        "price": 660000,
+        "type": "Sold"
+      }
+    },
+    "rent": {
+      "weekly": 775,
+      "low": 740,
+      "high": 815,
+      "comparables": 4,
+      "basis": "1-bed units advertised for rent within 1 km",
+      "this_property_last": {
+        "weekly": 780,
+        "date": "2026-02-02"
+      },
+      "suburb_median_unit": 1000
+    },
+    "returns": {
+      "price_basis": 852500,
+      "price_basis_is": "likely_sale",
+      "gross_yield_pct_at_asking": 5.2,
+      "gross_yield_pct_at_likely": 4.73,
+      "meets_min_yield": true,
+      "within_budget": false
+    },
+    "weekly_cost": {
+      "net_before_tax": 181,
+      "interest": 799,
+      "strata": 112,
+      "rates_insurance": 45,
+      "rent": 775,
+      "assumptions": "interest-only at 6.0% on price minus $160,000 deposit; strata = suburb median levy"
+    },
+    "supply": {
+      "radius_km": 1,
+      "new_dwellings_stated": 504,
+      "applications": 1,
+      "build_to_rent_dwellings": 504,
+      "largest": [
+        {
+          "address": "960A Bourke Street, Zetland NSW",
+          "km": 0.64,
+          "date": "2026-10-17",
+          "dwellings": 504,
+          "build_to_rent": true,
+          "lat": -33.9050768,
+          "lng": 151.2039236
+        }
+      ],
+      "competing_rentals_same_beds": 4,
+      "caveat": "DA stage unknown; older applications may be built or lapsed"
+    },
+    "competition": {
+      "for_sale_same_beds_1km": 2,
+      "median_asking_same_beds": 760000
+    },
+    "recent_sales": {
+      "same_beds_12m": 0,
+      "median_price": null,
+      "closest": []
+    },
+    "market": {
+      "suburb_median_unit_price": 998000,
+      "suburb_unit_yield_pct": 5.21,
+      "unit_growth_5y_pct": 8.4,
+      "unit_days_on_market": 44,
+      "unit_vacancy_pct": 1.52
+    },
+    "risks": [
+      {
+        "name": "hv_power_line",
+        "detail": "Not on property; nearest 23 m away",
+        "on_property": false
+      }
+    ],
+    "listing": {
+      "url": "https://www.realestate.com.au/property-unit-nsw-zetland-000000000",
+      "image": "https://i2.au.reastatic.net/800x600/example/image.jpg",
+      "portal": "rea",
+      "listing_id": "000000000",
+      "address_source": "rea page data"
+    },
+    "meta": {
+      "suburbs_searched": [
+        "Zetland",
+        "Beaconsfield (NSW)",
+        "Waterloo (NSW)",
+        "Rosebery (NSW)",
+        "Alexandria"
+      ],
+      "fetched_ms": 1240,
+      "fetched_at": "2026-11-07T00:00:00.000Z",
+      "source": "Microburbs API"
+    }
+  },
+  "address": {
+    "parts": {
+      "unit": "38",
+      "number": "3",
+      "street": "Victoria Park Parade",
+      "suburb": "Zetland",
+      "state": "NSW",
+      "postcode": "2017"
+    },
+    "lat": -33.9052,
+    "lng": 151.2108,
+    "source": "rea page data"
+  }
+}

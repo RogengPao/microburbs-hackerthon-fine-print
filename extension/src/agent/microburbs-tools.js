@@ -19,7 +19,7 @@ const suburb = {
   required: ['suburb'],
 };
 
-/** [name, description, input_schema, path, query?, response shape?] */
+/** [name, description, input_schema, path, query?, response shape?] — people-facing labels are in LABELS below. */
 const DEFS = [
   ['geocode_address', 'Find a property GNAF id from a street address. Include the unit number for apartments. Check the matched address before using the id.',
     { type: 'object', properties: { address: str('Full address, e.g. "Unit 38, 3 Victoria Park Parade, Zetland NSW 2017"') }, required: ['address'] },
@@ -49,6 +49,20 @@ const DEFS = [
     { select: 'data', limit: 60, fields: { address: 'area_name', lat: 'lat', lng: 'lng', date: 'date', category: 'category', description: 'description' } }],
 ];
 
+/** People-facing activity lines (shown in the panel instead of the tool name). */
+export const LABELS = {
+  geocode_address: 'Finding the property',
+  geocode_suburb: 'Looking up the suburb',
+  get_estimated_value: 'Checking the estimated value',
+  get_agent_quoting: "Checking the agency's quoting record",
+  get_property_history: 'Pulling sale and rent history',
+  get_property_risks: 'Checking hazards and overlays',
+  get_recent_sales_nearby: 'Looking at recent sales nearby',
+  get_suburb_market: 'Reading the suburb market',
+  get_rentals_for_rent: 'Checking rentals nearby',
+  get_development_applications: 'Scanning development applications',
+};
+
 /** @returns {import('../runtime/registry.js').Tool[]} */
 export function microburbsTools({ source = 'proxy', secretProvider }) {
   const s = SOURCES[source];
@@ -57,6 +71,7 @@ export function microburbsTools({ source = 'proxy', secretProvider }) {
       {
         name,
         description,
+        label: LABELS[name] ?? null,
         input_schema,
         allowed_hosts: [s.host],
         secrets: s.auth ? ['microburbs'] : [],

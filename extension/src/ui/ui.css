@@ -38,6 +38,16 @@ textarea { flex: 1; resize: none; border: none; outline: none; font: inherit; ba
 #send { width: 32px; height: 32px; border-radius: 16px; background: var(--ink); color: var(--paper); border: none; padding: 0; }
 #send:disabled { opacity: 0.4; }
 
+/* data card (placeholder for Carlos's widgets) */
+.data { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.matched { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted); }
+.figures { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
+.figures dt { color: var(--muted); }
+.figures dd { margin: 0; font-weight: 600; }
+.data-actions { display: flex; gap: 6px; }
+button.primary { flex: 1; background: var(--blue); color: #fff; border: none; font-weight: 600; padding: 8px 10px; }
+button.primary:disabled { opacity: .5; }
+
 /* first read: plain-text estimates + warnings, full width */
 .msg.agent.read { align-self: stretch; max-width: 100%; padding: 14px 16px; border-radius: 14px; font-size: 13px; line-height: 1.55; }
 

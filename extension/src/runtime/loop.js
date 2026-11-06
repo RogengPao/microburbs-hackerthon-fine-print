@@ -269,9 +269,11 @@ async function stepLoop(snapshot, store, adapter, tools, opts) {
             }),
           }),
         );
-        emit({ event: 'tool', name: call.name, call_id: call.id, deferred: false, error: true });
+        emit({ event: 'tool', name: call.name, label: tools.label?.(call.name) ?? null, call_id: call.id, deferred: false, error: true });
         continue;
       }
+      const label = tools.label?.(call.name) ?? null;
+      emit({ event: 'tool_start', name: call.name, label, call_id: call.id, args: call.args });
       let outcome;
       try {
         outcome = toolOutcome(await tools.execute(call));
@@ -279,7 +281,7 @@ async function stepLoop(snapshot, store, adapter, tools, opts) {
         // tool bugs become error envelopes
         outcome = toolOutcome({ result: errorEnvelope(String(e?.message ?? e), { retryable: true }), error: true });
       }
-      emit({ event: 'tool', name: call.name, call_id: call.id, deferred: outcome.deferred, error: outcome.error });
+      emit({ event: 'tool', name: call.name, label, call_id: call.id, deferred: outcome.deferred, error: outcome.error });
       outcomes.push(outcome);
       if (outcome.deferred) continue; // NO tool_response — assemble injects the pending placeholder
       await store.appendMessage(message({ role: 'tool_response', call_id: call.id, text: outcome.result, is_error: outcome.error }));

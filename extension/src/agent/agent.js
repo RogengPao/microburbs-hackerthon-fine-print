@@ -4,6 +4,7 @@
 import {
   ToolError,
   adapterFor,
+  ask as askOnce,
   agentSnapshot,
   ChromeStorageSecretProvider,
   IndexedDbTranscript,
@@ -14,6 +15,7 @@ import {
 import { addressFromPage, formatAddress } from './address.js';
 import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
 import { testBrief, testListingBriefTool } from './test-data.js';
+import { LessonBook, uiBlockTool } from './ui-blocks.js';
 import { microburbsTools } from './microburbs-tools.js';
 import { openAppDb, PropertyMemory, propertyMemoryTools } from './property-memory.js';
 import { pageContextText } from './page-context.js';
@@ -25,9 +27,32 @@ export const DEFAULT_SETTINGS = {
   brief: { budget: 800000, deposit: 160000, minYield: 4.0, holdYears: 10 },
 };
 
+export const HOLD_OPTIONS = [3, 5, 10, 15];
+
+/** Any brief → a valid one: blanks, zeros and junk fall back to the defaults (an empty field once saved holdYears: 0). */
+export function cleanBrief(brief = {}) {
+  const d = DEFAULT_SETTINGS.brief;
+  const pos = (v, fallback) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : fallback);
+  const budget = pos(brief.budget, d.budget);
+  const deposit = pos(brief.deposit, d.deposit) < budget ? pos(brief.deposit, d.deposit) : Math.round(budget * 0.2);
+  const hold = pos(brief.holdYears, d.holdYears);
+  return {
+    budget,
+    deposit,
+    minYield: pos(brief.minYield, d.minYield),
+    holdYears: HOLD_OPTIONS.includes(hold) ? hold : HOLD_OPTIONS.reduce((a, b) => (Math.abs(b - hold) < Math.abs(a - hold) ? b : a)),
+  };
+}
+
+/** Save the investor brief from onboarding (marks onboarding done). */
+export async function saveBrief(brief) {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  await chrome.storage.local.set({ settings: { ...settings, onboarded: true, brief: cleanBrief({ ...(settings.brief ?? {}), ...brief }) } });
+}
+
 export async function loadSettings() {
   const { settings } = await chrome.storage.local.get('settings');
-  return { ...DEFAULT_SETTINGS, ...(settings ?? {}), brief: { ...DEFAULT_SETTINGS.brief, ...(settings?.brief ?? {}) } };
+  return { ...DEFAULT_SETTINGS, ...(settings ?? {}), brief: cleanBrief(settings?.brief) };
 }
 
 function systemPrompt(brief) {
@@ -45,7 +70,12 @@ Memory:
 - Every property you analyse with get_listing_brief is saved automatically, with its listing link and main image. You don't need to save anything yourself.
 - Use recall_properties to compare this listing with ones the investor looked at before ("cheaper to hold than the Waterloo one you saw yesterday"), to rank what they've seen (by yield, weekly cost or price), or to find a property they mention by street or suburb. Use get_saved_property for the full saved brief of one of them.
 - When you mention a saved property, give its address and when it was analysed. Saved figures are from that day; say so if they may be stale.
-- Answer like a buyer's agent: lead with the verdict in one sentence, then the 2–4 numbers that matter. Short. Australian English. Say "property" or "apartment", never "flat". General information, not financial advice.`;
+
+Cards (show, don't list):
+- The investor wants to SEE the numbers. Whenever your answer is about yield, supply, weekly cost, value, how the area compares, what to offer, a hold scenario, the property's profile or hazards, call render_ui_block with that template — don't list the figures in text.
+- Shape: 1–2 sentences of interpretation as text + exactly one render_ui_block call, in the same message. You only pass the template — the card fills itself from Microburbs data (pass "property" for a saved property). Never several cards. No card for small talk.
+- Answer like a buyer's agent: lead with the verdict in one sentence, then the 2–4 numbers that matter. Short.
+- Format in Markdown for a narrow (420 px) panel: **bold** the key numbers, short bullet lists, at most a 2-column table; no long headings, no code blocks. Australian English. Say "property" or "apartment", never "flat". General information, not financial advice.`;
 }
 
 async function llmKey(provider) {
@@ -105,27 +135,31 @@ export const FIRST_READ_PROMPT = `The investor clicked "Read this listing". Prod
 
 If the listing brief is already in your context, write the read straight from it — no tools. If it isn't, call get_listing_brief ONCE with the listing's full address (include the unit number), then write the read. If there's no exact match, say which address you tried and ask the investor to confirm it.
 
-Reply in PLAIN TEXT only — no markdown, no bold, no tables — in exactly this shape:
+Reply in Markdown, in exactly this shape (keep it tight — it renders in a 420 px panel):
 
-MATCHED: <the brief's matched address>
+**<the brief's matched address>**
 
-VERDICT: <one sentence against the investor's brief>
+**Verdict:** <one sentence against the investor's brief>
 
-ESTIMATES
-- Estimated value: <$ range and confidence, or n/a>
-- Asking: <$>
-- Likely sale: <$ and the agency's quoting record in a few words>
-- Rent: <$/wk, range, how many comparables; mention this property's last advertised rent if there is one>
-- Gross yield: <at asking> / <at likely sale>
-- Weekly cost: <$/wk before tax, with the assumption in a few words>
+#### Estimates
+| | |
+|---|---|
+| Estimated value | <$ range and confidence, or n/a> |
+| Asking | <$> |
+| Likely sale | **<$>** — <the agency's quoting record in a few words> |
+| Rent | <$/wk (range), n comparables; this property's last advertised rent if there is one> |
+| Gross yield | <at asking> · <at likely sale> |
+| Weekly cost | <$/wk before tax> |
 
-WARNINGS
-- <most serious first, one line each, at most 4>
+#### Warnings
+- <most serious first, one line each, at most 4; bold the key number>
 
-UPSIDE
+#### Upside
 - <one line>
 
-If a figure is missing, write "n/a" and say why in a few words.`;
+If a figure is missing, write "n/a" and say why in a few words. No other headings, no code blocks.
+
+Then, in the same message, call render_ui_block ONCE with the card that matters most for the verdict (usually cash_flow if it's over budget or costs a lot weekly, supply if new supply is the biggest risk, yield otherwise).`;
 
 /** Agent-first turn for a fresh listing thread. */
 export async function firstRead({ threadId, listing, brief = null, onDelta, onEvent, shouldContinue }) {
@@ -146,12 +180,30 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   const adapter = adapterFor(snapshot, { apiKey: await llmKey(settings.provider), ...(settings.provider === 'openrouter' ? { appTitle: 'Fine Print' } : {}) });
   const secretProvider = new ChromeStorageSecretProvider();
   const memory = new PropertyMemory();
+  const lessons = new LessonBook();
+  // The brief for the listing on screen: pre-loaded by the panel, or fetched this turn by
+  // get_listing_brief. Cards fill themselves from it — the agent only picks the template.
+  const ctx = { brief };
+  const remembering = (t) => ({
+    ...t,
+    execute: async (args) => {
+      const out = await t.execute(args);
+      try {
+        ctx.brief = JSON.parse(out);
+      } catch {
+        /* not a brief */
+      }
+      return out;
+    },
+  });
+  const cards = uiBlockTool({ getBrief: () => ctx.brief, investor: settings.brief, memory, lessons });
   const tools = new ToolRegistry(
     settings.mbSource === 'test'
-      ? [testListingBriefTool({ investor: settings.brief, memory, listing }), ...propertyMemoryTools(memory)] // no network
+      ? [remembering(testListingBriefTool({ investor: settings.brief, memory, listing })), ...propertyMemoryTools(memory), cards] // no network
       : [
-          listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing }),
+          remembering(listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing })),
           ...propertyMemoryTools(memory),
+          cards,
           ...microburbsTools({ source: settings.mbSource, secretProvider }),
         ],
   );
@@ -168,6 +220,14 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   if (brief) {
     ephemeralContext.push(message({ role: 'system', text: `Listing brief for the property on screen (from Microburbs; computed, authoritative — quote these numbers):\n${JSON.stringify(brief)}` }));
   }
+  // Learning: past render_ui_block mistakes ride along so they stop recurring.
+  const lessonText = await lessons.text();
+  if (lessonText) ephemeralContext.push(message({ role: 'system', text: lessonText }));
+  if (brief) {
+    ephemeralContext.push(
+      message({ role: 'system', text: 'The investor already sees an overview of this listing at the top of the chat: matched address, a price gauge (estimate, asking, budget, likely sale), gross yield, weekly cost, vacancy, and signal rows for supply, agency quoting, value vs asking, rent comps and hazards. Don\'t repeat it; answer the question, and draw a card when it shows more depth (cash flow, offer, supply, value, area, hold).' }),
+    );
+  }
   // Turn-specific instructions go LAST so they're the freshest thing the model reads.
   if (instructions) ephemeralContext.push(message({ role: 'system', text: instructions }));
   return runTurn(snapshot, store, adapter, tools, {
@@ -180,10 +240,97 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   });
 }
 
+// ---------------------------------------------------------------- suggested questions
+// The chips above the chat box: generated per listing (after the brief loads) and
+// after every reply, so they follow the data and the conversation. One small
+// structured one-shot call — not part of the chat transcript.
+
+/** The few numbers that make a question specific — small enough to send every time. */
+export function briefDigest(b) {
+  if (!b) return null;
+  return {
+    property: b.property?.address,
+    beds: b.property?.beds,
+    asking: b.price?.asking,
+    likely_sale: b.price?.likely_sale,
+    estimated_value: b.price?.value?.estimate,
+    agency: b.price?.agency?.cohort,
+    rent_weekly: b.rent?.weekly,
+    yield_at_asking: b.returns?.gross_yield_pct_at_asking,
+    within_budget: b.returns?.within_budget,
+    weekly_cost: b.weekly_cost?.net_before_tax,
+    new_homes_1km: b.supply?.new_dwellings_stated,
+    build_to_rent_1km: b.supply?.build_to_rent_dwellings,
+    risks: (b.risks ?? []).map((r) => r.name),
+    vacancy_pct: b.market?.unit_vacancy_pct,
+  };
+}
+
+/**
+ * Three short, tappable next questions for this listing + conversation.
+ * @param {Object} o  { brief, recent: [{role, text}] (latest last) }
+ * @returns {Promise<string[]|null>} null when generation fails (caller keeps its defaults)
+ */
+export async function suggestQuestions({ brief = null, recent = [] }) {
+  const settings = await loadSettings();
+  const snapshot = agentSnapshot({
+    agent_version: 'fine-print-questions',
+    name: 'fine-print-questions',
+    provider: settings.provider,
+    model: settings.model,
+    stream: false,
+    params: { max_tokens: 300, temperature: 0.6 },
+    system_base: '',
+  });
+  const adapter = adapterFor(snapshot, { apiKey: await llmKey(settings.provider), ...(settings.provider === 'openrouter' ? { appTitle: 'Fine Print' } : {}) });
+  const instruction = `You suggest the 3 next questions a property investor would tap in a chat about the listing on screen.
+- Short: at most 7 words each, phrased as the investor would ask ("What should I offer?").
+- Specific to THIS listing's numbers and the conversation so far — lean into what's notable (over budget, heavy new supply, agency underquoting, a hazard, weak or strong yield).
+- Each must be answerable with Microburbs data: weekly cost, yield, rent, value, offer, new supply, area comparison, hold outcome, hazards, or comparing with properties seen before.
+- Don't repeat questions already asked. Australian English; say "property" or "apartment", never "flat".`;
+  const input = JSON.stringify({
+    investor: settings.brief,
+    listing: briefDigest(brief),
+    conversation: recent.slice(-6).map((m) => ({ role: m.role, text: String(m.text ?? '').slice(0, 300) })),
+  });
+  // Plain text, one question per line, parsed in code: works on every model/provider
+  // (forced tool_choice / json mode aren't supported everywhere — that silently failed).
+  try {
+    const r = await askOnce(adapter, `${instruction}\n\nReply with EXACTLY 3 lines, one question per line — no numbering, no bullets, no quotes, nothing else.`, input, { max_tokens: 200, temperature: 0.6 });
+    const questions = parseQuestions(r.text);
+    if (questions.length < 2) throw new Error(`unusable reply: ${JSON.stringify(String(r.text ?? '').slice(0, 200))}`);
+    await chrome.storage.local.remove('debug_questions_error').catch(() => {});
+    return questions;
+  } catch (e) {
+    console.warn('[fine-print] question suggestions failed', e);
+    // kept for the Settings → Export debug file
+    await chrome.storage.local.set({ debug_questions_error: { at: new Date().toISOString(), model: settings.model, error: String(e?.message ?? e).slice(0, 500) } }).catch(() => {});
+    return null;
+  }
+}
+
+/** Model text → up to 3 clean questions (tolerates numbering, bullets, quotes, a JSON array). */
+export function parseQuestions(text) {
+  const raw = String(text ?? '').trim();
+  let items;
+  try {
+    const j = JSON.parse(raw.replace(/^```(?:json)?|```$/g, '').trim());
+    items = Array.isArray(j) ? j : Array.isArray(j?.questions) ? j.questions : null;
+  } catch {
+    items = null;
+  }
+  items ??= raw.split('\n');
+  return items
+    .map((q) => String(q).replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/^["'“]|["'”]$/g, '').trim())
+    .filter((q) => q.length >= 5 && q.length <= 80)
+    .slice(0, 3);
+}
+
 /** name → people-facing label for every tool the agent can call (for rendering transcripts). */
 export const TOOL_LABELS = new ToolRegistry([
   listingBriefTool({ source: 'api' }),
   ...propertyMemoryTools(null),
+  uiBlockTool({ lessons: new LessonBook(null) }),
   ...microburbsTools({ source: 'api' }),
 ]).labels();
 

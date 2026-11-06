@@ -1,9 +1,13 @@
 // Dev panel: a bare chat over the runtime so the agent + Microburbs tools can be
 // tested in Chrome. Not the real design (that's the Paper v3 page).
 
-import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, TOOL_LABELS } from '../agent/agent.js';
+import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, loadSettings, saveBrief, suggestQuestions, TOOL_LABELS } from '../agent/agent.js';
 import { readTab } from '../agent/page-context.js';
 import { addressFromPage } from '../agent/address.js';
+import { renderMarkdown } from './markdown.js';
+import { renderBlock } from './blocks.js';
+import { normaliseBlockArgs } from '../agent/ui-blocks.js';
+import { renderOverview } from './overview.js';
 
 const $ = (id) => document.getElementById(id);
 const thread = $('thread');
@@ -37,36 +41,94 @@ function el(tag, cls, text) {
   return n;
 }
 
+/** Agent bubble with Markdown rendered (renderMarkdown escapes all HTML first). */
+function mdBubble(cls, text) {
+  const n = el('div', `${cls} md`);
+  n.innerHTML = renderMarkdown(text ?? '');
+  return n;
+}
+
 function scroll() {
   thread.scrollTop = thread.scrollHeight;
 }
 
 let lastRole = null;
+let lastProse = null; // a retried card call repeats its prose, and a concluding reply repeats it again — show it once
+let turnNo = 0;
 let firstReadOpen = false; // an agent reply after the hidden system trigger is the first read
 
 function renderMessage(m) {
   const afterTrigger = firstReadOpen;
   if (m.role === 'system') firstReadOpen = true; // legacy hidden trigger (older threads) — never rendered
   if (m.role === 'user') {
+    turnNo++;
+    lastProse = null;
     firstReadOpen = m.text === FIRST_READ_TEXT; // the reply to "Read this listing." renders as the read card
-    thread.append(el('div', 'msg user', m.text));
+    // the automatic read's trigger isn't something the investor typed — don't show it
+    if (!firstReadOpen) thread.append(el('div', 'msg user', m.text));
   } else if (m.role === 'agent') {
-    thread.append(el('div', afterTrigger ? 'msg agent read' : 'msg agent', m.text ?? ''));
+    if ((m.text ?? '').trim() !== lastProse) thread.append(mdBubble(afterTrigger ? 'msg agent read' : 'msg agent', m.text));
     firstReadOpen = false;
   }
   else if (m.role === 'tool_request') {
-    if (m.text) thread.append(el('div', 'msg agent pre', m.text));
-    for (const c of m.calls) thread.append(toolRow(c.id, c.name, c.args));
+    // prose beside ONLY card calls is the reply itself (render_ui_block concludes), not a preamble
+    const onlyCards = m.calls.every((c) => c.name === 'render_ui_block');
+    const prose = (m.text ?? '').trim();
+    if (prose && prose !== lastProse) thread.append(mdBubble(onlyCards ? 'msg agent' : 'msg agent pre', m.text));
+    if (prose) lastProse = prose;
+    for (const c of m.calls) {
+      if (c.name === 'render_ui_block') {
+        // placeholder until the response says the body was valid
+        const slot = el('div', 'ub-slot');
+        slot.dataset.call = c.id;
+        slot.dataset.args = JSON.stringify(c.args ?? {});
+        thread.append(slot);
+      } else {
+        thread.append(toolRow(c.id, c.name, c.args));
+      }
+    }
   } else if (m.role === 'tool_response') {
     const row = thread.querySelector(`[data-call="${CSS.escape(m.call_id)}"]`);
-    if (row) fillTool(row, m.text, m.is_error);
+    if (row?.classList.contains('ub-slot')) {
+      // valid → draw the card; invalid → a small visible note (the agent usually fixes it and calls again)
+      if (m.is_error) {
+        let why = m.text;
+        try {
+          why = JSON.parse(m.text).error;
+        } catch {
+          /* raw text */
+        }
+        const note = el('div', 'meta ub-failed', `✕ card not drawn: ${String(why).slice(0, 160)}`);
+        note.dataset.turn = String(turnNo);
+        row.replaceWith(note);
+      } else {
+        // a successful retry makes this turn's earlier failure notes noise
+        for (const n of thread.querySelectorAll(`.ub-failed[data-turn="${turnNo}"]`)) n.remove();
+        // the tool fills the card from data and returns it; older calls carried the body in their args
+        let { template, body } = normaliseBlockArgs(JSON.parse(row.dataset.args));
+        try {
+          const res = JSON.parse(m.text);
+          if (res.body) ({ template, body } = { template: res.template ?? template, body: res.body });
+        } catch {
+          /* older result shape */
+        }
+        try {
+          row.replaceWith(template && body ? renderBlock(template, body) : el('div', 'meta ub-failed', '✕ card not drawn: unreadable arguments'));
+        } catch (e) {
+          console.error('[fine-print] card render failed', e, template, body);
+          row.replaceWith(el('div', 'meta ub-failed', `✕ card not drawn: ${e.message}`));
+        }
+      }
+    } else if (row) fillTool(row, m.text, m.is_error);
   }
   lastRole = m.role;
 }
 
 async function renderHistory() {
-  thread.replaceChildren();
+  thread.replaceChildren(...(overviewEl ? [overviewEl] : []));
   lastRole = null;
+  lastProse = null;
+  turnNo = 0;
   firstReadOpen = false;
   for (const m of await history(threadId)) renderMessage(m);
 }
@@ -116,6 +178,7 @@ async function detectListing({ settleMs = 0 } = {}) {
   threadId = threads[key] ?? `${key}#${Date.now()}`;
   threads[key] = threadId;
   await chrome.storage.local.set({ threads });
+  setOverview(null); // a new listing never shows the previous one's cards
   await renderHistory();
   scroll();
   $('starters').hidden = busy;
@@ -128,7 +191,51 @@ async function detectListing({ settleMs = 0 } = {}) {
 const money = (n) => (n == null ? 'n/a' : `$${Math.round(n).toLocaleString('en-AU')}`);
 const pct = (n) => (n == null ? 'n/a' : `${n}%`);
 
+// ---------------------------------------------------------------- suggested questions
+// Generated by the agent for this listing + conversation; the HTML defaults show until
+// (or if) generation fails. Newest request wins.
+let questionsRun = 0;
+async function refreshQuestions() {
+  const myRun = ++questionsRun;
+  $('starters').classList.add('loading');
+  const recent = (await history(threadId).catch(() => [])).filter((m) => (m.role === 'user' && m.text !== FIRST_READ_TEXT) || m.role === 'agent');
+  const questions = await suggestQuestions({ brief, recent });
+  if (myRun !== questionsRun) return;
+  $('starters').classList.remove('loading');
+  if (questions?.length) $('starters').replaceChildren(...questions.map((q) => el('button', null, q)));
+}
+
+// ---------------------------------------------------------------- native overview
+// The top of the thread: one overview block (design B) built straight from the brief,
+// in code — instant, no model, no flavour text. Chat continues below in the same thread.
+let overviewEl = null;
+
+function setOverview(node) {
+  overviewEl?.remove();
+  overviewEl = node;
+  if (node) thread.prepend(node);
+}
+
+function buildOverview(res, investor) {
+  const wrap = el('section', 'overview');
+  if (!res.ok) {
+    wrap.append(
+      el('div', 'meta ub-failed', res.reason === 'no_match' ? `No exact match — ${res.message}${res.hint ? ` (${res.hint})` : ''}` : res.reason === 'no_address' ? res.message : `Couldn't load Microburbs data — ${res.message}`),
+    );
+    return wrap;
+  }
+  try {
+    wrap.append(renderOverview(res.brief, investor, { onAsk: (q) => send(q) }));
+  } catch (e) {
+    console.error('[fine-print] overview failed', e);
+    wrap.append(el('div', 'meta ub-failed', `Couldn't draw the overview: ${e.message}`));
+  }
+  return wrap;
+}
+
 async function fetchBrief() {
+  setOverview(el('section', 'overview', ''));
+  overviewEl.append(el('div', 'meta', 'Reading this listing…'));
   $('matched').textContent = 'Matching address…';
   $('figures').replaceChildren();
   $('read').disabled = true;
@@ -140,6 +247,9 @@ async function fetchBrief() {
     },
   });
   brief = res.ok ? res.brief : null;
+  setOverview(buildOverview(res, (await loadSettings()).brief));
+  scroll();
+  refreshQuestions(); // per-listing questions, in the background
   window.finePrint = { brief, result: res };
   window.dispatchEvent(new CustomEvent('fineprint:brief', { detail: res }));
   console.log('[fine-print] brief', res);
@@ -202,10 +312,12 @@ async function run(runner, { status = null } = {}) {
       onDelta: (d) => {
         if (d.type !== 'text') return;
         if (!live) {
-          live = el('div', 'msg agent live', '');
+          live = el('div', 'msg agent live md');
+          live.dataset.raw = '';
           thread.append(live);
         }
-        live.textContent += d.text;
+        live.dataset.raw += d.text;
+        live.innerHTML = renderMarkdown(live.dataset.raw);
         scroll();
       },
       onEvent: (e) => {
@@ -241,6 +353,7 @@ async function run(runner, { status = null } = {}) {
     busy = false;
     $('send').disabled = false;
     $('starters').hidden = false;
+    refreshQuestions(); // follow-ups for what was just said
     scroll();
   }
 }
@@ -263,8 +376,66 @@ window.addEventListener('message', (e) => {
   if (e.source === window.parent && e.data?.type === 'fineprint:navigated') detectListing({ settleMs: 900 });
 });
 
+// ---------------------------------------------------------------- onboarding
+const num = (s) => Number(String(s ?? '').replace(/[^\d.]/g, '')) || 0;
+const commas = (n) => (n ? Math.round(n).toLocaleString('en-AU') : '');
+let holdYears = 10;
+
+async function paintBriefChip() {
+  const s = await loadSettings();
+  $('brief-chip').textContent = s.onboarded
+    ? `$${Math.round(s.brief.budget / 1000)}K · ≥${s.brief.minYield}% · ${s.brief.holdYears}y`
+    : 'brief: not set';
+}
+
+async function showSetup(show) {
+  const s = await loadSettings();
+  $('setup').hidden = !show;
+  for (const id of ['listing', 'data', 'thread', 'starters', 'ask']) $(id).classList.toggle('behind-setup', show);
+  if (!show) return;
+  $('s-budget').value = commas(s.brief.budget);
+  $('s-deposit').value = commas(s.brief.deposit);
+  $('s-yield').value = s.brief.minYield;
+  holdYears = s.brief.holdYears;
+  paintSetup();
+}
+
+function paintSetup() {
+  const budget = num($('s-budget').value);
+  const deposit = num($('s-deposit').value);
+  $('s-deposit-pct').textContent = budget && deposit ? `${Math.round((deposit / budget) * 100)}%` : '';
+  $('s-yield-out').textContent = `${Number($('s-yield').value).toFixed(1)}%`;
+  for (const b of $('s-hold').querySelectorAll('button')) b.classList.toggle('on', Number(b.dataset.years) === holdYears);
+  $('s-save').disabled = !(budget > 0 && deposit > 0 && deposit < budget);
+}
+
+for (const id of ['s-budget', 's-deposit']) {
+  $(id).addEventListener('input', paintSetup);
+  $(id).addEventListener('blur', () => ($(id).value = commas(num($(id).value))));
+}
+$('s-yield').addEventListener('input', paintSetup);
+$('s-hold').addEventListener('click', (e) => {
+  if (e.target.dataset.years) {
+    holdYears = Number(e.target.dataset.years);
+    paintSetup();
+  }
+});
+$('s-save').addEventListener('click', async () => {
+  await saveBrief({ budget: num($('s-budget').value), deposit: num($('s-deposit').value), minYield: Number($('s-yield').value), holdYears });
+  await showSetup(false);
+  await paintBriefChip();
+  if (listing) {
+    await fetchBrief(); // weekly cost etc. depend on the brief
+    // the overview redraws from the new brief (fetchBrief) — no agent call needed
+  }
+});
+$('brief-chip').addEventListener('click', () => showSetup($('setup').hidden));
+
 $('new').addEventListener('click', newThread);
 $('read').addEventListener('click', readListing);
 $('copy-brief').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(window.finePrint?.result ?? null, null, 2)));
 $('opts').addEventListener('click', () => chrome.runtime.openOptionsPage());
+// first run: onboarding before anything else; afterwards straight to the listing
+paintBriefChip();
+loadSettings().then((s) => showSetup(!s.onboarded));
 detectListing();

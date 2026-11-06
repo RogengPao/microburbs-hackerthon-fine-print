@@ -9,6 +9,17 @@ Hand-in closes **15:00**. Team key + CSVs arrive **11:00**.
 - [x] 🟢 **Fast first read** — agent talks first using the brief: one tool call, one model step _(wired; live check with the brief)_
 - [ ] 🟢 **Address reading** — clean address off REA and Domain listing pages (unit, number, street, suburb)
 - [ ] 🔑 **Exact address matching** — match against the City of Sydney address list, geocode fallback, show "Matched: …" so judges can check it; test set of ~15 real listings scoring ≥14/15
+  - Known gaps in the address pipeline (PR #4 review, 7 Nov) — fix if the match test set trips on them:
+    - [ ] no-suburb input never matches and reports `suburb-mismatch` (compare suburbs only when both sides have one; use candidate `sal`)
+    - [ ] non-address headings / og:title fall back to the loose parser → fake addresses ("2 Bedroom Apartment in Zetland")
+    - [ ] 1-letter street fuzz can pick the wrong street (Bourke ↔ Burke) and still say exact
+    - [ ] number range matches any single number inside it (`lowConfidence` never gates exact)
+    - [ ] "Level 2 5/12 …" without a comma no longer parses
+    - [ ] raw-text geocode fallback removed (O'Connell → "o connell" only)
+    - [ ] postcode guessed from the first table entry and kept in every retry
+    - [ ] retry variants capped at 2 before dedupe (range-first-number retry lost)
+    - [ ] only the last street-type word expanded ("Smith St North")
+    - [ ] panel loads the 392 KB postcode table it doesn't need
 - [ ] 🟢 **Panel UI** — verdict, readouts, warnings, upside, rendered from the brief inside the slide-out; budget + deposit editable
 - [ ] 🟢 **Supply pipeline view** — new dwellings within 1 km, build-to-rent called out
 - [ ] 🔑 **Public housing flag** — from the supplied CSV

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fine Print</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="panel">
+    <header>
+      <div class="brand"><span class="mark">F</span> Fine Print <span class="dim">dev</span></div>
+      <div class="actions">
+        <button id="new" title="Start a new thread">New</button>
+        <button id="opts" title="Keys and settings">Settings</button>
+        <button id="close" title="Hide" hidden>✕</button>
+      </div>
+    </header>
+    <div id="listing" class="listing dim">No listing detected — open a realestate.com.au property page.</div>
+    <main id="thread"></main>
+    <div class="starters" id="starters">
+      <button>What will it cost me weekly?</button>
+      <button>What should I offer?</button>
+      <button>Is new supply a risk here?</button>
+    </div>
+    <form id="ask">
+      <textarea id="input" rows="2" placeholder="Ask anything about this listing…"></textarea>
+      <button type="submit" id="send">↑</button>
+    </form>
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>

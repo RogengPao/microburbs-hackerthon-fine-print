@@ -1,0 +1,18 @@
+# Hand-in rule: no API keys, supplied files or API output in the repo
+.env
+*.key
+secrets*.json
+api-cache/
+api-output/
+*.har
+
+node_modules/
+.DS_Store
+
+# Day-only supplied files (7 Nov) — use on the day, never republish
+addresses-city-of-sydney.csv
+public-housing-homes-city-of-sydney.csv
+rents-input-flats-city-of-sydney.csv
+rents-past-leases-city-of-sydney.csv
+blocks-homes-and-people-2021-2026.csv
+data/

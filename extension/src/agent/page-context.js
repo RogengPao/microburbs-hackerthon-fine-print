@@ -1,0 +1,76 @@
+// Reads the listing page the investor is looking at and turns it into ephemeral
+// context for the agent (appended to every step of the turn, never persisted).
+// Generic on purpose — structured data first (JSON-LD, Open Graph), then a capped
+// slice of visible text — so it survives portal markup changes. Plus the portal's
+// hidden ad targeting (REA's price bracket), read in the page's MAIN world.
+
+import { bracketLabel, decodeReaPrice } from './rea-price.js';
+
+/** Runs INSIDE the page (chrome.scripting.executeScript). Must be self-contained. */
+function readListingPage() {
+  const meta = (name) =>
+    document.querySelector(`meta[property="${name}"], meta[name="${name}"]`)?.getAttribute('content') ?? null;
+  const jsonLd = [...document.querySelectorAll('script[type="application/ld+json"]')]
+    .map((s) => s.textContent.trim())
+    .filter(Boolean);
+  const main = document.querySelector('main') ?? document.body;
+  const text = (main?.innerText ?? '').replace(/\n{3,}/g, '\n\n').trim();
+  return {
+    url: location.href,
+    title: document.title,
+    heading: document.querySelector('h1')?.innerText?.trim() ?? null,
+    og: { title: meta('og:title'), description: meta('og:description') },
+    // main listing image URL (reference link only — the image itself is never copied)
+    image: meta('og:image') ?? meta('twitter:image') ?? null,
+    description: meta('description'),
+    jsonLd: jsonLd.join('\n').slice(0, 4000),
+    text: text.slice(0, 6000),
+  };
+}
+
+/** Runs in the page's MAIN world: the ad slot's targeting (googletag lives there). */
+function readAdTargeting() {
+  try {
+    const slot = window.googletag?.pubads?.().getSlots?.()[0];
+    if (!slot) return null;
+    return Object.fromEntries(slot.getTargetingKeys().map((k) => [k, slot.getTargeting(k)[0] ?? null]));
+  } catch {
+    return null;
+  }
+}
+
+/** Read the active tab's page. Returns null when the page can't be read. */
+export async function readTab(tabId) {
+  try {
+    const [res] = await chrome.scripting.executeScript({ target: { tabId }, func: readListingPage });
+    const page = res?.result ?? null;
+    if (page && /realestate\.com\.au/.test(page.url)) {
+      const [ad] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: readAdTargeting }).catch(() => []);
+      const t = ad?.result;
+      if (t) page.hidden = { priceBracket: decodeReaPrice(t.price), priceCode: t.price ?? null, listingTier: t.productDepth ?? null };
+    }
+    return page;
+  } catch (e) {
+    console.warn('[fine-print] could not read page', e);
+    return null;
+  }
+}
+
+/** Render page info as the ephemeral system message text. */
+export function pageContextText(page) {
+  const parts = [
+    'The investor is viewing this listing. Treat it as the property in question unless they say otherwise.',
+    'Listing copy is written to sell — verify claims against Microburbs data.',
+    `URL: ${page.url}`,
+    `Title: ${page.title}`,
+  ];
+  if (page.heading) parts.push(`Heading: ${page.heading}`);
+  if (page.og?.description || page.description) parts.push(`Summary: ${page.og?.description ?? page.description}`);
+  if (page.hidden?.priceBracket) {
+    parts.push(`Hidden price bracket (from the portal's ad targeting, not shown to buyers): ${bracketLabel(page.hidden.priceBracket)}. The agent's real price expectation sits in this band even if the listing says "Contact Agent".`);
+  }
+  if (page.hidden?.listingTier) parts.push(`Listing tier (vendor's paid ad level): ${page.hidden.listingTier}`);
+  if (page.jsonLd) parts.push(`Structured data (JSON-LD):\n${page.jsonLd}`);
+  if (page.text) parts.push(`Page text (truncated):\n${page.text}`);
+  return parts.join('\n');
+}

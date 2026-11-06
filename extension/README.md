@@ -1,0 +1,57 @@
+# Fine Print — Chrome extension
+
+MV3 extension, plain ES modules, no build step. UI not started yet; this is the
+agent runtime + the extension shell.
+
+```bash
+npm test                      # node --test, 27 tests, no dependencies
+```
+
+Load in Chrome: `chrome://extensions` → Developer mode → Load unpacked → this folder.
+
+## `src/runtime/` — hivemind-runtime, ported to JS
+
+Port of `hivemind-runtime` v0.3.2 (Python). Same contract and invariants: the
+transcript is the only state, the runtime owns the intra-turn loop
+(assemble → generate → execute tools → repeat), the host owns everything between
+turns, network is declared never ambient, errors are typed and returned.
+
+| Python | JS | Notes |
+|---|---|---|
+| `contract.py` | `contract.js` | pydantic models → factory functions with defaults |
+| `assemble.py` | `assemble.js` | identical semantics (pending placeholder, token-budget window) |
+| `loop.py` | `loop.js` | `runTurn` / `resumeTurn`, async; options camelCase |
+| `ask.py` | `ask.js` | tool / json mechanisms, validate-and-retry |
+| `registry.py` | `registry.js` | + args validated against `input_schema` before execute |
+| `stores.py` | `stores.js` | `MemoryTranscript`, `IndexedDbTranscript` (same record format as the JSONL store) |
+| `dialects/openai.py`, `providers/*` | `providers/*` | DeepSeek, OpenRouter, Mock; fetch + SSE streaming |
+| `tools/declarative.py`, `manifest.py`, `egress.py`, `http.py`, `secrets.py`, `errors.py` | `tools/*` | declarative HTTP tools — how Microburbs endpoints get defined |
+| jsonschema | `validate.js` | small subset (type/properties/required/enum/items/min/max…) |
+
+**Browser differences, on purpose**
+- Everything is async (fetch, IndexedDB, chrome.storage).
+- API keys are passed in (`apiKey`), read by the host from `chrome.storage.local` — never env, never bundled.
+- Tool HTTP refuses redirects (`redirect: 'error'`): a browser can't read a manual redirect's Location, so it can't re-check egress per hop the way Python does.
+- Typed tool failures set the outcome's `error` flag (Python's bundle bridge returned them as non-error content).
+- `fingerprint()` is async (WebCrypto) and not byte-compatible with Python's.
+
+**Not ported**: Python code-tool sandbox + filesystem bundle loader (not applicable in a browser), `ask`-kind manifest tools (call `ask()` from a tool instead), audit sinks, the Anthropic adapter (experimental upstream).
+
+**Rule**: run the agent loop in the panel page, not the service worker — Chrome kills idle workers.
+
+### Defining a Microburbs tool
+
+```js
+declarativeTool({
+  name: 'get_estimated_value',
+  description: 'Estimated value (AVM) for a property',
+  allowed_hosts: ['api-ht.microburbs.com.au'],
+  secrets: ['microburbs'],
+  input_schema: { type: 'object', properties: { gnaf_id: { type: 'string' } }, required: ['gnaf_id'] },
+  request: {
+    url: 'https://api-ht.microburbs.com.au/v1/properties/{{args.gnaf_id}}/valuation/avm',
+    headers: { Authorization: 'Bearer {{secret:microburbs}}' },
+    response: { select: 'data', fields: { value: 'predicted_price', confidence: 'confidence_score' } },
+  },
+}, { secretProvider: new ChromeStorageSecretProvider() });
+```

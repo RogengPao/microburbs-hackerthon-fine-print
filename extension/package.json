@@ -1,0 +1,13 @@
+{
+  "name": "fine-print-extension",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Fine Print Chrome extension — hivemind-runtime JS port + (soon) the investor panel.",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

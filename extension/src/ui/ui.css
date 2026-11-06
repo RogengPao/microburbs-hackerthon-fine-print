@@ -40,6 +40,24 @@ textarea { flex: 1; resize: none; border: none; outline: none; font: inherit; ba
 #send { width: 32px; height: 32px; border-radius: 16px; background: var(--ink); color: var(--paper); border: none; padding: 0; }
 #send:disabled { opacity: 0.4; }
 
+/* onboarding (placeholder for design A) */
+.setup { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.setup-title { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 34px; margin: 4px 0 0; letter-spacing: -.01em; }
+.setup p { margin: 0; }
+.setup label, .setup-label { display: flex; flex-direction: column; gap: 5px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.setup label strong { font-family: 'Instrument Serif', Georgia, serif; font-size: 22px; color: var(--ink); letter-spacing: 0; text-transform: none; font-weight: 400; }
+.setup input:not([type=range]) { font: 500 16px Geist, system-ui, sans-serif; color: var(--ink); padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-transform: none; letter-spacing: 0; }
+.setup input:focus { outline: 2px solid rgba(47,100,217,.35); border-color: var(--blue); }
+.setup input[type=range] { accent-color: var(--blue); }
+.setup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; border-radius: 12px; background: #f3f0e8; border: 1px solid var(--line); }
+.segmented button { border: none; background: none; padding: 8px 0; border-radius: 9px; color: var(--muted); }
+.segmented button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(60,48,28,.1); }
+.setup .primary { margin-top: 6px; padding: 12px; border-radius: 12px; background: var(--ink); }
+.setup-foot { text-align: center; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10px; }
+.behind-setup { display: none !important; }
+.chip { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; background: #f3f0e8; }
+
 /* data card (placeholder for Carlos's widgets) */
 .data { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
 .matched { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted); }

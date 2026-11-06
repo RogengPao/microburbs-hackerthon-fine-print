@@ -307,7 +307,8 @@ export async function fetchListingBrief({ address = null, parts = null, source =
   }
   onProgress({ stage: 'matched', address: match.display_name, gnaf_id: match.id });
 
-  const cacheKey = `brief:${match.id}`;
+  // the brief's maths depends on the investor (deposit, budget, min yield) — key the cache on it
+  const cacheKey = `brief:${match.id}:${investor?.budget ?? ''}:${investor?.deposit ?? ''}:${investor?.minYield ?? ''}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
 

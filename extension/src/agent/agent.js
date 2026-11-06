@@ -26,6 +26,12 @@ export const DEFAULT_SETTINGS = {
   brief: { budget: 800000, deposit: 160000, minYield: 4.0, holdYears: 10 },
 };
 
+/** Save the investor brief from onboarding (marks onboarding done). */
+export async function saveBrief(brief) {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  await chrome.storage.local.set({ settings: { ...settings, onboarded: true, brief: { ...DEFAULT_SETTINGS.brief, ...(settings.brief ?? {}), ...brief } } });
+}
+
 export async function loadSettings() {
   const { settings } = await chrome.storage.local.get('settings');
   return { ...DEFAULT_SETTINGS, ...(settings ?? {}), brief: { ...DEFAULT_SETTINGS.brief, ...(settings?.brief ?? {}) } };

@@ -1,7 +1,7 @@
 // Dev panel: a bare chat over the runtime so the agent + Microburbs tools can be
 // tested in Chrome. Not the real design (that's the Paper v3 page).
 
-import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, TOOL_LABELS } from '../agent/agent.js';
+import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, loadSettings, saveBrief, TOOL_LABELS } from '../agent/agent.js';
 import { readTab } from '../agent/page-context.js';
 import { addressFromPage } from '../agent/address.js';
 import { renderMarkdown } from './markdown.js';
@@ -293,8 +293,66 @@ window.addEventListener('message', (e) => {
   if (e.source === window.parent && e.data?.type === 'fineprint:navigated') detectListing({ settleMs: 900 });
 });
 
+// ---------------------------------------------------------------- onboarding
+const num = (s) => Number(String(s ?? '').replace(/[^\d.]/g, '')) || 0;
+const commas = (n) => (n ? Math.round(n).toLocaleString('en-AU') : '');
+let holdYears = 10;
+
+async function paintBriefChip() {
+  const s = await loadSettings();
+  $('brief-chip').textContent = s.onboarded
+    ? `$${Math.round(s.brief.budget / 1000)}K · ≥${s.brief.minYield}% · ${s.brief.holdYears}y`
+    : 'brief: not set';
+}
+
+async function showSetup(show) {
+  const s = await loadSettings();
+  $('setup').hidden = !show;
+  for (const id of ['listing', 'data', 'thread', 'starters', 'ask']) $(id).classList.toggle('behind-setup', show);
+  if (!show) return;
+  $('s-budget').value = commas(s.brief.budget);
+  $('s-deposit').value = commas(s.brief.deposit);
+  $('s-yield').value = s.brief.minYield;
+  holdYears = s.brief.holdYears;
+  paintSetup();
+}
+
+function paintSetup() {
+  const budget = num($('s-budget').value);
+  const deposit = num($('s-deposit').value);
+  $('s-deposit-pct').textContent = budget && deposit ? `${Math.round((deposit / budget) * 100)}%` : '';
+  $('s-yield-out').textContent = `${Number($('s-yield').value).toFixed(1)}%`;
+  for (const b of $('s-hold').querySelectorAll('button')) b.classList.toggle('on', Number(b.dataset.years) === holdYears);
+  $('s-save').disabled = !(budget > 0 && deposit > 0 && deposit < budget);
+}
+
+for (const id of ['s-budget', 's-deposit']) {
+  $(id).addEventListener('input', paintSetup);
+  $(id).addEventListener('blur', () => ($(id).value = commas(num($(id).value))));
+}
+$('s-yield').addEventListener('input', paintSetup);
+$('s-hold').addEventListener('click', (e) => {
+  if (e.target.dataset.years) {
+    holdYears = Number(e.target.dataset.years);
+    paintSetup();
+  }
+});
+$('s-save').addEventListener('click', async () => {
+  await saveBrief({ budget: num($('s-budget').value), deposit: num($('s-deposit').value), minYield: Number($('s-yield').value), holdYears });
+  await showSetup(false);
+  await paintBriefChip();
+  if (listing) {
+    await fetchBrief(); // weekly cost etc. depend on the brief
+    if (!busy && !thread.querySelector('.msg')) readListing(); // first time only; editing the brief later just refreshes the numbers
+  }
+});
+$('brief-chip').addEventListener('click', () => showSetup($('setup').hidden));
+
 $('new').addEventListener('click', newThread);
 $('read').addEventListener('click', readListing);
 $('copy-brief').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(window.finePrint?.result ?? null, null, 2)));
 $('opts').addEventListener('click', () => chrome.runtime.openOptionsPage());
+// first run: onboarding before anything else; afterwards straight to the listing
+paintBriefChip();
+loadSettings().then((s) => showSetup(!s.onboarded));
 detectListing();

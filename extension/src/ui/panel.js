@@ -3,6 +3,7 @@
 
 import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, TOOL_LABELS } from '../agent/agent.js';
 import { readTab } from '../agent/page-context.js';
+import { addressFromPage } from '../agent/address.js';
 
 const $ = (id) => document.getElementById(id);
 const thread = $('thread');
@@ -24,6 +25,7 @@ async function currentTab() {
 
 const LISTING_URL = /realestate\.com\.au\/property-|domain\.com\.au\/[^/?#]+-\d{7,}\/?(?:[?#]|$)/;
 let listing = null;
+let detectRun = 0; // newest navigation wins
 let brief = null; // the loaded listing brief (docs/brief.md)
 let threadId = null;
 let busy = false;
@@ -91,10 +93,20 @@ function fillTool(row, text, isError) {
   row.querySelector('.tbody').textContent = pretty.length > 6000 ? `${pretty.slice(0, 6000)}\n… (${pretty.length} chars)` : pretty;
 }
 
-async function detectListing() {
+async function detectListing({ settleMs = 0 } = {}) {
+  const myRun = ++detectRun;
+  if (settleMs) await new Promise((r) => setTimeout(r, settleMs)); // let the SPA render the new listing
+  if (myRun !== detectRun) return; // a newer navigation superseded this one
   const tab = await currentTab();
   const isListing = tab?.url && LISTING_URL.test(tab.url);
   listing = isListing ? { url: tab.url, title: tab.title, page: await readTab(tab.id) } : null;
+  // After a client-side nav the heading can lag the URL: retry briefly until an address reads.
+  for (let i = 0; listing && !addressFromPage(listing.page) && i < 6; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (myRun !== detectRun) return;
+    listing.page = await readTab(tab.id);
+  }
+  if (myRun !== detectRun) return;
   $('listing').textContent = listing
     ? `Reading: ${listing.page?.heading ?? listing.title}${listing.page ? '' : ' (page not readable — URL only)'}`
     : 'No listing detected — you can still ask about any City of Sydney address.';
@@ -246,6 +258,11 @@ $('input').addEventListener('keydown', (e) => {
 $('starters').addEventListener('click', (e) => {
   if (e.target.tagName === 'BUTTON') send(e.target.textContent);
 });
+// The host page navigated client-side (see content/inject.js): re-read it.
+window.addEventListener('message', (e) => {
+  if (e.source === window.parent && e.data?.type === 'fineprint:navigated') detectListing({ settleMs: 900 });
+});
+
 $('new').addEventListener('click', newThread);
 $('read').addEventListener('click', readListing);
 $('copy-brief').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(window.finePrint?.result ?? null, null, 2)));

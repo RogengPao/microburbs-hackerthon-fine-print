@@ -6,7 +6,7 @@ import { readTab } from '../agent/page-context.js';
 import { addressFromPage } from '../agent/address.js';
 import { renderMarkdown } from './markdown.js';
 import { renderBlock } from './blocks.js';
-import { normaliseBlockArgs } from '../agent/ui-blocks.js';
+import { cardFromBrief, normaliseBlockArgs } from '../agent/ui-blocks.js';
 
 const $ = (id) => document.getElementById(id);
 const thread = $('thread');
@@ -124,7 +124,7 @@ function renderMessage(m) {
 }
 
 async function renderHistory() {
-  thread.replaceChildren();
+  thread.replaceChildren(...(overviewEl ? [overviewEl] : []));
   lastRole = null;
   lastProse = null;
   turnNo = 0;
@@ -177,6 +177,7 @@ async function detectListing({ settleMs = 0 } = {}) {
   threadId = threads[key] ?? `${key}#${Date.now()}`;
   threads[key] = threadId;
   await chrome.storage.local.set({ threads });
+  setOverview(null); // a new listing never shows the previous one's cards
   await renderHistory();
   scroll();
   $('starters').hidden = busy;
@@ -184,18 +185,45 @@ async function detectListing({ settleMs = 0 } = {}) {
   brief = null;
   $('data').hidden = !listing;
   if (listing) await fetchBrief();
-  // Agent reads first: a listing with an empty thread gets the read straight away
-  // (after onboarding — saving the brief triggers it instead).
-  if (listing && myRun === detectRun && !busy && !thread.querySelector('.msg')) {
-    const { onboarded } = await loadSettings();
-    if (onboarded) readListing();
-  }
 }
 
 const money = (n) => (n == null ? 'n/a' : `$${Math.round(n).toLocaleString('en-AU')}`);
 const pct = (n) => (n == null ? 'n/a' : `${n}%`);
 
+// ---------------------------------------------------------------- native overview
+// The top of the thread: cards built straight from the brief, in code — instant, no
+// model, no flavour text. Chat with the agent continues below in the same thread.
+const OVERVIEW = ['property', 'cash_flow', 'yield', 'supply', 'offer', 'overlays'];
+let overviewEl = null;
+
+function setOverview(node) {
+  overviewEl?.remove();
+  overviewEl = node;
+  if (node) thread.prepend(node);
+}
+
+function buildOverview(res, investor) {
+  const wrap = el('section', 'overview');
+  if (!res.ok) {
+    wrap.append(
+      el('div', 'meta ub-failed', res.reason === 'no_match' ? `No exact match — ${res.message}${res.hint ? ` (${res.hint})` : ''}` : res.reason === 'no_address' ? res.message : `Couldn't load Microburbs data — ${res.message}`),
+    );
+    return wrap;
+  }
+  if (res.brief.meta?.test_data) wrap.append(el('div', 'meta', 'TEST DATA · bundled figures, not live Microburbs'));
+  for (const t of OVERVIEW) {
+    try {
+      wrap.append(renderBlock(t, cardFromBrief(t, res.brief, investor)));
+    } catch {
+      /* no data for this card — skip it */
+    }
+  }
+  return wrap;
+}
+
 async function fetchBrief() {
+  setOverview(el('section', 'overview', ''));
+  overviewEl.append(el('div', 'meta', 'Reading this listing…'));
   $('matched').textContent = 'Matching address…';
   $('figures').replaceChildren();
   $('read').disabled = true;
@@ -207,6 +235,8 @@ async function fetchBrief() {
     },
   });
   brief = res.ok ? res.brief : null;
+  setOverview(buildOverview(res, (await loadSettings()).brief));
+  scroll();
   window.finePrint = { brief, result: res };
   window.dispatchEvent(new CustomEvent('fineprint:brief', { detail: res }));
   console.log('[fine-print] brief', res);
@@ -382,7 +412,7 @@ $('s-save').addEventListener('click', async () => {
   await paintBriefChip();
   if (listing) {
     await fetchBrief(); // weekly cost etc. depend on the brief
-    if (!busy && !thread.querySelector('.msg')) readListing(); // first time only; editing the brief later just refreshes the numbers
+    // the overview redraws from the new brief (fetchBrief) — no agent call needed
   }
 });
 $('brief-chip').addEventListener('click', () => showSetup($('setup').hidden));

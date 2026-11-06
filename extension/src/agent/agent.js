@@ -222,6 +222,11 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   // Learning: past render_ui_block mistakes ride along so they stop recurring.
   const lessonText = await lessons.text();
   if (lessonText) ephemeralContext.push(message({ role: 'system', text: lessonText }));
+  if (brief) {
+    ephemeralContext.push(
+      message({ role: 'system', text: 'The investor already sees overview cards for this listing at the top of the chat: property, cash flow, yield, supply, offer and hazards. Don\'t redraw those unless asked; answer the question, and use a card only when it adds something (e.g. value, area, hold).' }),
+    );
+  }
   // Turn-specific instructions go LAST so they're the freshest thing the model reads.
   if (instructions) ephemeralContext.push(message({ role: 'system', text: instructions }));
   return runTurn(snapshot, store, adapter, tools, {

@@ -4,6 +4,7 @@
 import {
   ToolError,
   adapterFor,
+  ask as askOnce,
   agentSnapshot,
   ChromeStorageSecretProvider,
   IndexedDbTranscript,
@@ -237,6 +238,79 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
     shouldContinue,
     maxToolSteps: 12,
   });
+}
+
+// ---------------------------------------------------------------- suggested questions
+// The chips above the chat box: generated per listing (after the brief loads) and
+// after every reply, so they follow the data and the conversation. One small
+// structured one-shot call — not part of the chat transcript.
+
+const QUESTIONS_SCHEMA = {
+  type: 'object',
+  properties: { questions: { type: 'array', items: { type: 'string', minLength: 5, maxLength: 60 }, minItems: 3, maxItems: 3 } },
+  required: ['questions'],
+  additionalProperties: false,
+};
+
+/** The few numbers that make a question specific — small enough to send every time. */
+export function briefDigest(b) {
+  if (!b) return null;
+  return {
+    property: b.property?.address,
+    beds: b.property?.beds,
+    asking: b.price?.asking,
+    likely_sale: b.price?.likely_sale,
+    estimated_value: b.price?.value?.estimate,
+    agency: b.price?.agency?.cohort,
+    rent_weekly: b.rent?.weekly,
+    yield_at_asking: b.returns?.gross_yield_pct_at_asking,
+    within_budget: b.returns?.within_budget,
+    weekly_cost: b.weekly_cost?.net_before_tax,
+    new_homes_1km: b.supply?.new_dwellings_stated,
+    build_to_rent_1km: b.supply?.build_to_rent_dwellings,
+    risks: (b.risks ?? []).map((r) => r.name),
+    vacancy_pct: b.market?.unit_vacancy_pct,
+  };
+}
+
+/**
+ * Three short, tappable next questions for this listing + conversation.
+ * @param {Object} o  { brief, recent: [{role, text}] (latest last) }
+ * @returns {Promise<string[]|null>} null when generation fails (caller keeps its defaults)
+ */
+export async function suggestQuestions({ brief = null, recent = [] }) {
+  const settings = await loadSettings();
+  const snapshot = agentSnapshot({
+    agent_version: 'fine-print-questions',
+    name: 'fine-print-questions',
+    provider: settings.provider,
+    model: settings.model,
+    stream: false,
+    params: { max_tokens: 300, temperature: 0.6 },
+    system_base: '',
+  });
+  const adapter = adapterFor(snapshot, { apiKey: await llmKey(settings.provider), ...(settings.provider === 'openrouter' ? { appTitle: 'Fine Print' } : {}) });
+  const instruction = `You suggest the 3 next questions a property investor would tap in a chat about the listing on screen.
+- Short: at most 7 words each, phrased as the investor would ask ("What should I offer?").
+- Specific to THIS listing's numbers and the conversation so far — lean into what's notable (over budget, heavy new supply, agency underquoting, a hazard, weak or strong yield).
+- Each must be answerable with Microburbs data: weekly cost, yield, rent, value, offer, new supply, area comparison, hold outcome, hazards, or comparing with properties seen before.
+- Don't repeat questions already asked. Australian English; say "property" or "apartment", never "flat".`;
+  const input = JSON.stringify({
+    investor: settings.brief,
+    listing: briefDigest(brief),
+    conversation: recent.slice(-6).map((m) => ({ role: m.role, text: String(m.text ?? '').slice(0, 300) })),
+  });
+  try {
+    const r = await askOnce(adapter, instruction, input, { max_tokens: 300, temperature: 0.6 }, {
+      schema: QUESTIONS_SCHEMA,
+      example: { questions: ['What should I offer?', 'Is the new supply a risk?', 'What will it cost me weekly?'] },
+      maxAttempts: 2,
+    });
+    return r.data?.questions ?? null;
+  } catch (e) {
+    console.warn('[fine-print] question suggestions failed', e);
+    return null;
+  }
 }
 
 /** name → people-facing label for every tool the agent can call (for rendering transcripts). */

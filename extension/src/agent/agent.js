@@ -224,7 +224,7 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   if (lessonText) ephemeralContext.push(message({ role: 'system', text: lessonText }));
   if (brief) {
     ephemeralContext.push(
-      message({ role: 'system', text: 'The investor already sees overview cards for this listing at the top of the chat: property, cash flow, yield, supply, offer and hazards. Don\'t redraw those unless asked; answer the question, and use a card only when it adds something (e.g. value, area, hold).' }),
+      message({ role: 'system', text: 'The investor already sees an overview of this listing at the top of the chat: matched address, a price gauge (estimate, asking, budget, likely sale), gross yield, weekly cost, vacancy, and signal rows for supply, agency quoting, value vs asking, rent comps and hazards. Don\'t repeat it; answer the question, and draw a card when it shows more depth (cash flow, offer, supply, value, area, hold).' }),
     );
   }
   // Turn-specific instructions go LAST so they're the freshest thing the model reads.

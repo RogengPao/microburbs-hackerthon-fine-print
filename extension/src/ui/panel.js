@@ -6,7 +6,8 @@ import { readTab } from '../agent/page-context.js';
 import { addressFromPage } from '../agent/address.js';
 import { renderMarkdown } from './markdown.js';
 import { renderBlock } from './blocks.js';
-import { cardFromBrief, normaliseBlockArgs } from '../agent/ui-blocks.js';
+import { normaliseBlockArgs } from '../agent/ui-blocks.js';
+import { renderOverview } from './overview.js';
 
 const $ = (id) => document.getElementById(id);
 const thread = $('thread');
@@ -191,9 +192,8 @@ const money = (n) => (n == null ? 'n/a' : `$${Math.round(n).toLocaleString('en-A
 const pct = (n) => (n == null ? 'n/a' : `${n}%`);
 
 // ---------------------------------------------------------------- native overview
-// The top of the thread: cards built straight from the brief, in code — instant, no
-// model, no flavour text. Chat with the agent continues below in the same thread.
-const OVERVIEW = ['property', 'cash_flow', 'yield', 'supply', 'offer', 'overlays'];
+// The top of the thread: one overview block (design B) built straight from the brief,
+// in code — instant, no model, no flavour text. Chat continues below in the same thread.
 let overviewEl = null;
 
 function setOverview(node) {
@@ -210,13 +210,11 @@ function buildOverview(res, investor) {
     );
     return wrap;
   }
-  if (res.brief.meta?.test_data) wrap.append(el('div', 'meta', 'TEST DATA · bundled figures, not live Microburbs'));
-  for (const t of OVERVIEW) {
-    try {
-      wrap.append(renderBlock(t, cardFromBrief(t, res.brief, investor)));
-    } catch {
-      /* no data for this card — skip it */
-    }
+  try {
+    wrap.append(renderOverview(res.brief, investor, { onAsk: (q) => send(q) }));
+  } catch (e) {
+    console.error('[fine-print] overview failed', e);
+    wrap.append(el('div', 'meta ub-failed', `Couldn't draw the overview: ${e.message}`));
   }
   return wrap;
 }

@@ -48,6 +48,30 @@ textarea { flex: 1; resize: none; border: none; outline: none; font: inherit; ba
 button.primary { flex: 1; background: var(--blue); color: #fff; border: none; font-weight: 600; padding: 8px 10px; }
 button.primary:disabled { opacity: .5; }
 
+/* markdown in agent bubbles */
+.msg.md { white-space: normal; }
+.msg.md > :first-child { margin-top: 0; }
+.msg.md > :last-child { margin-bottom: 0; }
+.msg.md p { margin: 0 0 8px; }
+.msg.md h3, .msg.md h4, .msg.md h5, .msg.md h6 { margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+.msg.md h3 { font-size: 15px; }
+.msg.md h4, .msg.md h5, .msg.md h6 { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.msg.md ul, .msg.md ol { margin: 0 0 8px; padding-left: 18px; }
+.msg.md li { margin: 2px 0; }
+.msg.md li::marker { color: var(--muted); }
+.msg.md strong { font-weight: 600; }
+.msg.md code { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; background: #f3f0e8; border-radius: 4px; padding: 1px 4px; }
+.msg.md pre { background: #f3f0e8; border-radius: 8px; padding: 8px 10px; overflow-x: auto; margin: 0 0 8px; }
+.msg.md pre code { background: none; padding: 0; }
+.msg.md blockquote { margin: 0 0 8px; padding: 6px 10px; border-left: 3px solid var(--warn); background: #fdf6e3; border-radius: 0 6px 6px 0; color: var(--warn-ink); }
+.msg.md hr { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
+.msg.md a { color: var(--blue); text-decoration: none; border-bottom: 1px solid rgba(47,100,217,.3); }
+.msg.md table { border-collapse: collapse; width: 100%; margin: 0 0 8px; font-size: 12px; }
+.msg.md th, .msg.md td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.msg.md th { color: var(--muted); font-weight: 500; }
+.msg.md td:last-child, .msg.md th:last-child { text-align: right; }
+.msg.agent.pre.md { font-style: normal; }
+
 /* first read: plain-text estimates + warnings, full width */
 .msg.agent.read { align-self: stretch; max-width: 100%; padding: 14px 16px; border-radius: 14px; font-size: 13px; line-height: 1.55; }
 
@@ -62,3 +86,4 @@ fieldset { border: 1px solid var(--line); border-radius: 12px; margin: 0 0 16px;
 legend { font-weight: 600; padding: 0 4px; }
 label { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; color: var(--muted); }
 input, select { font: inherit; color: var(--ink); padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.msg.md thead tr:not(:has(th:not(:empty))) { display: none; } /* header-less tables ("| | |") */

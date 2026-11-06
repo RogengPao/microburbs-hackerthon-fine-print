@@ -45,7 +45,8 @@ Memory:
 - Every property you analyse with get_listing_brief is saved automatically, with its listing link and main image. You don't need to save anything yourself.
 - Use recall_properties to compare this listing with ones the investor looked at before ("cheaper to hold than the Waterloo one you saw yesterday"), to rank what they've seen (by yield, weekly cost or price), or to find a property they mention by street or suburb. Use get_saved_property for the full saved brief of one of them.
 - When you mention a saved property, give its address and when it was analysed. Saved figures are from that day; say so if they may be stale.
-- Answer like a buyer's agent: lead with the verdict in one sentence, then the 2–4 numbers that matter. Short. Australian English. Say "property" or "apartment", never "flat". General information, not financial advice.`;
+- Answer like a buyer's agent: lead with the verdict in one sentence, then the 2–4 numbers that matter. Short.
+- Format in Markdown for a narrow (420 px) panel: **bold** the key numbers, short bullet lists, at most a 2-column table; no long headings, no code blocks. Australian English. Say "property" or "apartment", never "flat". General information, not financial advice.`;
 }
 
 async function llmKey(provider) {
@@ -105,27 +106,29 @@ export const FIRST_READ_PROMPT = `The investor clicked "Read this listing". Prod
 
 If the listing brief is already in your context, write the read straight from it — no tools. If it isn't, call get_listing_brief ONCE with the listing's full address (include the unit number), then write the read. If there's no exact match, say which address you tried and ask the investor to confirm it.
 
-Reply in PLAIN TEXT only — no markdown, no bold, no tables — in exactly this shape:
+Reply in Markdown, in exactly this shape (keep it tight — it renders in a 420 px panel):
 
-MATCHED: <the brief's matched address>
+**<the brief's matched address>**
 
-VERDICT: <one sentence against the investor's brief>
+**Verdict:** <one sentence against the investor's brief>
 
-ESTIMATES
-- Estimated value: <$ range and confidence, or n/a>
-- Asking: <$>
-- Likely sale: <$ and the agency's quoting record in a few words>
-- Rent: <$/wk, range, how many comparables; mention this property's last advertised rent if there is one>
-- Gross yield: <at asking> / <at likely sale>
-- Weekly cost: <$/wk before tax, with the assumption in a few words>
+#### Estimates
+| | |
+|---|---|
+| Estimated value | <$ range and confidence, or n/a> |
+| Asking | <$> |
+| Likely sale | **<$>** — <the agency's quoting record in a few words> |
+| Rent | <$/wk (range), n comparables; this property's last advertised rent if there is one> |
+| Gross yield | <at asking> · <at likely sale> |
+| Weekly cost | <$/wk before tax> |
 
-WARNINGS
-- <most serious first, one line each, at most 4>
+#### Warnings
+- <most serious first, one line each, at most 4; bold the key number>
 
-UPSIDE
+#### Upside
 - <one line>
 
-If a figure is missing, write "n/a" and say why in a few words.`;
+If a figure is missing, write "n/a" and say why in a few words. No other headings, no code blocks.`;
 
 /** Agent-first turn for a fresh listing thread. */
 export async function firstRead({ threadId, listing, brief = null, onDelta, onEvent, shouldContinue }) {

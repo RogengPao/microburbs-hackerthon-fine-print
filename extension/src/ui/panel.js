@@ -4,6 +4,7 @@
 import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, TOOL_LABELS } from '../agent/agent.js';
 import { readTab } from '../agent/page-context.js';
 import { addressFromPage } from '../agent/address.js';
+import { renderMarkdown } from './markdown.js';
 
 const $ = (id) => document.getElementById(id);
 const thread = $('thread');
@@ -37,6 +38,13 @@ function el(tag, cls, text) {
   return n;
 }
 
+/** Agent bubble with Markdown rendered (renderMarkdown escapes all HTML first). */
+function mdBubble(cls, text) {
+  const n = el('div', `${cls} md`);
+  n.innerHTML = renderMarkdown(text ?? '');
+  return n;
+}
+
 function scroll() {
   thread.scrollTop = thread.scrollHeight;
 }
@@ -51,11 +59,11 @@ function renderMessage(m) {
     firstReadOpen = m.text === FIRST_READ_TEXT; // the reply to "Read this listing." renders as the read card
     thread.append(el('div', 'msg user', m.text));
   } else if (m.role === 'agent') {
-    thread.append(el('div', afterTrigger ? 'msg agent read' : 'msg agent', m.text ?? ''));
+    thread.append(mdBubble(afterTrigger ? 'msg agent read' : 'msg agent', m.text));
     firstReadOpen = false;
   }
   else if (m.role === 'tool_request') {
-    if (m.text) thread.append(el('div', 'msg agent pre', m.text));
+    if (m.text) thread.append(mdBubble('msg agent pre', m.text));
     for (const c of m.calls) thread.append(toolRow(c.id, c.name, c.args));
   } else if (m.role === 'tool_response') {
     const row = thread.querySelector(`[data-call="${CSS.escape(m.call_id)}"]`);
@@ -202,10 +210,12 @@ async function run(runner, { status = null } = {}) {
       onDelta: (d) => {
         if (d.type !== 'text') return;
         if (!live) {
-          live = el('div', 'msg agent live', '');
+          live = el('div', 'msg agent live md');
+          live.dataset.raw = '';
           thread.append(live);
         }
-        live.textContent += d.text;
+        live.dataset.raw += d.text;
+        live.innerHTML = renderMarkdown(live.dataset.raw);
         scroll();
       },
       onEvent: (e) => {

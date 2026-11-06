@@ -12,3 +12,11 @@ test('cleanBrief: zeros, blanks and junk fall back to sane defaults', async () =
   assert.equal(cleanBrief({ budget: 600000, deposit: 900000 }).deposit, 120000); // deposit can't exceed budget
   assert.equal(cleanBrief({ minYield: -1 }).minYield, 4);
 });
+
+test('parseQuestions: lines, numbering, bullets, quotes, JSON', async () => {
+  const { parseQuestions } = await import('../src/agent/agent.js');
+  assert.deepEqual(parseQuestions('What should I offer?\nIs the supply a risk?\nWhat will it cost weekly?'), ['What should I offer?', 'Is the supply a risk?', 'What will it cost weekly?']);
+  assert.deepEqual(parseQuestions('1. What should I offer?\n2) Is supply a risk?\n- "Can I get it under $800K?"'), ['What should I offer?', 'Is supply a risk?', 'Can I get it under $800K?']);
+  assert.deepEqual(parseQuestions('{"questions":["What should I offer?","Any hazards nearby?","Is rent growth safe?"]}'), ['What should I offer?', 'Any hazards nearby?', 'Is rent growth safe?']);
+  assert.deepEqual(parseQuestions(''), []);
+});

@@ -245,13 +245,6 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
 // after every reply, so they follow the data and the conversation. One small
 // structured one-shot call — not part of the chat transcript.
 
-const QUESTIONS_SCHEMA = {
-  type: 'object',
-  properties: { questions: { type: 'array', items: { type: 'string', minLength: 5, maxLength: 60 }, minItems: 3, maxItems: 3 } },
-  required: ['questions'],
-  additionalProperties: false,
-};
-
 /** The few numbers that make a question specific — small enough to send every time. */
 export function briefDigest(b) {
   if (!b) return null;
@@ -300,17 +293,37 @@ export async function suggestQuestions({ brief = null, recent = [] }) {
     listing: briefDigest(brief),
     conversation: recent.slice(-6).map((m) => ({ role: m.role, text: String(m.text ?? '').slice(0, 300) })),
   });
+  // Plain text, one question per line, parsed in code: works on every model/provider
+  // (forced tool_choice / json mode aren't supported everywhere — that silently failed).
   try {
-    const r = await askOnce(adapter, instruction, input, { max_tokens: 300, temperature: 0.6 }, {
-      schema: QUESTIONS_SCHEMA,
-      example: { questions: ['What should I offer?', 'Is the new supply a risk?', 'What will it cost me weekly?'] },
-      maxAttempts: 2,
-    });
-    return r.data?.questions ?? null;
+    const r = await askOnce(adapter, `${instruction}\n\nReply with EXACTLY 3 lines, one question per line — no numbering, no bullets, no quotes, nothing else.`, input, { max_tokens: 200, temperature: 0.6 });
+    const questions = parseQuestions(r.text);
+    if (questions.length < 2) throw new Error(`unusable reply: ${JSON.stringify(String(r.text ?? '').slice(0, 200))}`);
+    await chrome.storage.local.remove('debug_questions_error').catch(() => {});
+    return questions;
   } catch (e) {
     console.warn('[fine-print] question suggestions failed', e);
+    // kept for the Settings → Export debug file
+    await chrome.storage.local.set({ debug_questions_error: { at: new Date().toISOString(), model: settings.model, error: String(e?.message ?? e).slice(0, 500) } }).catch(() => {});
     return null;
   }
+}
+
+/** Model text → up to 3 clean questions (tolerates numbering, bullets, quotes, a JSON array). */
+export function parseQuestions(text) {
+  const raw = String(text ?? '').trim();
+  let items;
+  try {
+    const j = JSON.parse(raw.replace(/^```(?:json)?|```$/g, '').trim());
+    items = Array.isArray(j) ? j : Array.isArray(j?.questions) ? j.questions : null;
+  } catch {
+    items = null;
+  }
+  items ??= raw.split('\n');
+  return items
+    .map((q) => String(q).replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/^["'“]|["'”]$/g, '').trim())
+    .filter((q) => q.length >= 5 && q.length <= 80)
+    .slice(0, 3);
 }
 
 /** name → people-facing label for every tool the agent can call (for rendering transcripts). */

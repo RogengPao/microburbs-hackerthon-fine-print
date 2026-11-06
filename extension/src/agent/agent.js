@@ -70,8 +70,9 @@ Memory:
 - Use recall_properties to compare this listing with ones the investor looked at before ("cheaper to hold than the Waterloo one you saw yesterday"), to rank what they've seen (by yield, weekly cost or price), or to find a property they mention by street or suburb. Use get_saved_property for the full saved brief of one of them.
 - When you mention a saved property, give its address and when it was analysed. Saved figures are from that day; say so if they may be stale.
 
-Cards:
-- When a question maps to a card (yield, supply, cash flow, value, area, offer, hold, property, hazards), answer in 1–2 sentences AND call render_ui_block once with that template, filled from the brief. One card per reply, never several. No card for small talk or when the data is missing.
+Cards (show, don't list):
+- The investor wants to SEE the numbers. Whenever your answer is about yield, supply, weekly cost, value, how the area compares, what to offer, a hold scenario, the property's profile or hazards, call render_ui_block with that template — don't list the figures in text.
+- Shape: 1–2 sentences of interpretation as text + exactly one render_ui_block call, in the same message. Never several cards. No card only for small talk or when the data is missing.
 - Answer like a buyer's agent: lead with the verdict in one sentence, then the 2–4 numbers that matter. Short.
 - Format in Markdown for a narrow (420 px) panel: **bold** the key numbers, short bullet lists, at most a 2-column table; no long headings, no code blocks. Australian English. Say "property" or "apartment", never "flat". General information, not financial advice.`;
 }
@@ -155,7 +156,9 @@ Reply in Markdown, in exactly this shape (keep it tight — it renders in a 420 
 #### Upside
 - <one line>
 
-If a figure is missing, write "n/a" and say why in a few words. No other headings, no code blocks.`;
+If a figure is missing, write "n/a" and say why in a few words. No other headings, no code blocks.
+
+Then, in the same message, call render_ui_block ONCE with the card that matters most for the verdict (usually cash_flow if it's over budget or costs a lot weekly, supply if new supply is the biggest risk, yield otherwise).`;
 
 /** Agent-first turn for a fresh listing thread. */
 export async function firstRead({ threadId, listing, brief = null, onDelta, onEvent, shouldContinue }) {

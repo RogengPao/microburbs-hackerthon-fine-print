@@ -301,6 +301,12 @@ export function templateGuide(name) {
   return `Template "${name}" (${t.question}) — ${t.purpose}\nbody (fields ending ? are optional): ${describe(t.schema)}\nValid example body: ${JSON.stringify(t.example)}`;
 }
 
+/** Every template's field guide (no examples) — goes in the tool description so the FIRST call is right. */
+const allGuides = () =>
+  Object.entries(TEMPLATES)
+    .map(([k, t]) => `• ${k} — "${t.question}" ${t.purpose}\n  body: ${describe(t.schema)}`)
+    .join('\n');
+
 const templateList = () =>
   Object.entries(TEMPLATES)
     .map(([k, t]) => `${k} — "${t.question}" ${t.purpose}`)
@@ -375,10 +381,10 @@ export function uiBlockTool({ lessons = new LessonBook() } = {}) {
     name: 'render_ui_block',
     label: 'Drawing a card',
     concludes: true,
-    description: `Attach ONE visual card under your reply (shown when asked — never several at once). Write your 1–2 sentence answer as normal text in the same message, then call this. Pick the template that answers the investor's question, fill body from the listing brief (never invent numbers), and keep text short — it renders in a 420 px panel.
-Templates:
-${templateList()}
-If the body is wrong you'll get back exactly what to fix plus a valid example; correct it and call again.`,
+    description: `Show ONE visual card under your reply — the investor sees a chart instead of a list of figures. Write your 1–2 sentence answer as normal text in the same message, then call this once. Fill body from the listing brief (never invent numbers). Use EXACTLY the field names below — no others. "headline" is the short big number as displayed (e.g. "−$181", "5.2%", "$713K") — never a sentence. Money fields are whole dollars as numbers (852500, not "$852K").
+Templates and their body fields (? = optional):
+${allGuides()}
+If a body is wrong you get back exactly what to fix plus a valid example; correct it and call again.`,
     // Loose outer schema on purpose: template + body are checked INSIDE execute so every
     // mistake gets the self-documenting error (generic arg validation can't teach).
     input_schema: {

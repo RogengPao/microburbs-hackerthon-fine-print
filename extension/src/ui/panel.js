@@ -52,22 +52,28 @@ function scroll() {
 }
 
 let lastRole = null;
+let lastProse = null; // a retried card call repeats its prose, and a concluding reply repeats it again — show it once
+let turnNo = 0;
 let firstReadOpen = false; // an agent reply after the hidden system trigger is the first read
 
 function renderMessage(m) {
   const afterTrigger = firstReadOpen;
   if (m.role === 'system') firstReadOpen = true; // legacy hidden trigger (older threads) — never rendered
   if (m.role === 'user') {
+    turnNo++;
+    lastProse = null;
     firstReadOpen = m.text === FIRST_READ_TEXT; // the reply to "Read this listing." renders as the read card
     thread.append(el('div', 'msg user', m.text));
   } else if (m.role === 'agent') {
-    thread.append(mdBubble(afterTrigger ? 'msg agent read' : 'msg agent', m.text));
+    if ((m.text ?? '').trim() !== lastProse) thread.append(mdBubble(afterTrigger ? 'msg agent read' : 'msg agent', m.text));
     firstReadOpen = false;
   }
   else if (m.role === 'tool_request') {
     // prose beside ONLY card calls is the reply itself (render_ui_block concludes), not a preamble
     const onlyCards = m.calls.every((c) => c.name === 'render_ui_block');
-    if (m.text) thread.append(mdBubble(onlyCards ? 'msg agent' : 'msg agent pre', m.text));
+    const prose = (m.text ?? '').trim();
+    if (prose && prose !== lastProse) thread.append(mdBubble(onlyCards ? 'msg agent' : 'msg agent pre', m.text));
+    if (prose) lastProse = prose;
     for (const c of m.calls) {
       if (c.name === 'render_ui_block') {
         // placeholder until the response says the body was valid
@@ -90,8 +96,12 @@ function renderMessage(m) {
         } catch {
           /* raw text */
         }
-        row.replaceWith(el('div', 'meta ub-failed', `✕ card not drawn: ${String(why).slice(0, 160)}`));
+        const note = el('div', 'meta ub-failed', `✕ card not drawn: ${String(why).slice(0, 160)}`);
+        note.dataset.turn = String(turnNo);
+        row.replaceWith(note);
       } else {
+        // a successful retry makes this turn's earlier failure notes noise
+        for (const n of thread.querySelectorAll(`.ub-failed[data-turn="${turnNo}"]`)) n.remove();
         const { template, body } = normaliseBlockArgs(JSON.parse(row.dataset.args));
         try {
           row.replaceWith(template && body ? renderBlock(template, body) : el('div', 'meta ub-failed', '✕ card not drawn: unreadable arguments'));
@@ -108,6 +118,8 @@ function renderMessage(m) {
 async function renderHistory() {
   thread.replaceChildren();
   lastRole = null;
+  lastProse = null;
+  turnNo = 0;
   firstReadOpen = false;
   for (const m of await history(threadId)) renderMessage(m);
 }

@@ -26,15 +26,32 @@ export const DEFAULT_SETTINGS = {
   brief: { budget: 800000, deposit: 160000, minYield: 4.0, holdYears: 10 },
 };
 
+export const HOLD_OPTIONS = [3, 5, 10, 15];
+
+/** Any brief → a valid one: blanks, zeros and junk fall back to the defaults (an empty field once saved holdYears: 0). */
+export function cleanBrief(brief = {}) {
+  const d = DEFAULT_SETTINGS.brief;
+  const pos = (v, fallback) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : fallback);
+  const budget = pos(brief.budget, d.budget);
+  const deposit = pos(brief.deposit, d.deposit) < budget ? pos(brief.deposit, d.deposit) : Math.round(budget * 0.2);
+  const hold = pos(brief.holdYears, d.holdYears);
+  return {
+    budget,
+    deposit,
+    minYield: pos(brief.minYield, d.minYield),
+    holdYears: HOLD_OPTIONS.includes(hold) ? hold : HOLD_OPTIONS.reduce((a, b) => (Math.abs(b - hold) < Math.abs(a - hold) ? b : a)),
+  };
+}
+
 /** Save the investor brief from onboarding (marks onboarding done). */
 export async function saveBrief(brief) {
   const { settings = {} } = await chrome.storage.local.get('settings');
-  await chrome.storage.local.set({ settings: { ...settings, onboarded: true, brief: { ...DEFAULT_SETTINGS.brief, ...(settings.brief ?? {}), ...brief } } });
+  await chrome.storage.local.set({ settings: { ...settings, onboarded: true, brief: cleanBrief({ ...(settings.brief ?? {}), ...brief }) } });
 }
 
 export async function loadSettings() {
   const { settings } = await chrome.storage.local.get('settings');
-  return { ...DEFAULT_SETTINGS, ...(settings ?? {}), brief: { ...DEFAULT_SETTINGS.brief, ...(settings?.brief ?? {}) } };
+  return { ...DEFAULT_SETTINGS, ...(settings ?? {}), brief: cleanBrief(settings?.brief) };
 }
 
 function systemPrompt(brief) {

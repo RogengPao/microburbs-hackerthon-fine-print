@@ -423,7 +423,11 @@ If the body is wrong you'll get back exactly what to fix plus a valid example; c
           error_code: 'invalid_block_body',
         });
       }
-      return JSON.stringify({ rendered: true, template, note: 'The card is shown under your message. Do not restate its numbers; your sentence should interpret them.' });
+      return JSON.stringify({
+        rendered: true,
+        template,
+        note: 'The card is now shown to the investor. If you have not already written your answer beside this call, reply with ONE or TWO short sentences interpreting the card — no new analysis, no headings, no repeating its numbers.',
+      });
     },
   });
 }

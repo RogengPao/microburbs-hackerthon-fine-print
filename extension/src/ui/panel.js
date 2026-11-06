@@ -1,7 +1,7 @@
 // Dev panel: a bare chat over the runtime so the agent + Microburbs tools can be
 // tested in Chrome. Not the real design (that's the Paper v3 page).
 
-import { ask, firstRead, history, loadBrief, TOOL_LABELS } from '../agent/agent.js';
+import { ask, FIRST_READ_TEXT, firstRead, history, loadBrief, TOOL_LABELS } from '../agent/agent.js';
 import { readTab } from '../agent/page-context.js';
 
 const $ = (id) => document.getElementById(id);
@@ -44,9 +44,9 @@ let firstReadOpen = false; // an agent reply after the hidden system trigger is 
 
 function renderMessage(m) {
   const afterTrigger = firstReadOpen;
-  if (m.role === 'system') firstReadOpen = true; // hidden host instruction — never rendered
+  if (m.role === 'system') firstReadOpen = true; // legacy hidden trigger (older threads) — never rendered
   if (m.role === 'user') {
-    firstReadOpen = false;
+    firstReadOpen = m.text === FIRST_READ_TEXT; // the reply to "Read this listing." renders as the read card
     thread.append(el('div', 'msg user', m.text));
   } else if (m.role === 'agent') {
     thread.append(el('div', afterTrigger ? 'msg agent read' : 'msg agent', m.text ?? ''));

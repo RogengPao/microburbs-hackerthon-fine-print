@@ -97,9 +97,10 @@ export async function ask({ threadId, text, listing, brief = null, onDelta, onEv
   return turn({ threadId, inbound: message({ role: 'user', text }), listing, brief, onDelta, onEvent, shouldContinue });
 }
 
-// The hidden first-read prompt: the agent talks first. Persisted as a `system`
-// record (a host-injected instruction, never rendered) so follow-up questions keep
-// the context of what was already read.
+// "Read this listing": the button sends a real USER message (models need a user
+// turn to answer — an all-system turn made DeepSeek emit junk), and the format
+// instructions ride as ephemeral context for that turn only.
+export const FIRST_READ_TEXT = 'Read this listing.';
 export const FIRST_READ_PROMPT = `The investor clicked "Read this listing". Produce the first read now.
 
 If the listing brief is already in your context, write the read straight from it — no tools. If it isn't, call get_listing_brief ONCE with the listing's full address (include the unit number), then write the read. If there's no exact match, say which address you tried and ask the investor to confirm it.
@@ -128,10 +129,10 @@ If a figure is missing, write "n/a" and say why in a few words.`;
 
 /** Agent-first turn for a fresh listing thread. */
 export async function firstRead({ threadId, listing, brief = null, onDelta, onEvent, shouldContinue }) {
-  return turn({ threadId, inbound: message({ role: 'system', text: FIRST_READ_PROMPT }), listing, brief, onDelta, onEvent, shouldContinue });
+  return turn({ threadId, inbound: message({ role: 'user', text: FIRST_READ_TEXT }), listing, brief, instructions: FIRST_READ_PROMPT, onDelta, onEvent, shouldContinue });
 }
 
-async function turn({ threadId, inbound, listing, brief = null, onDelta, onEvent, shouldContinue }) {
+async function turn({ threadId, inbound, listing, brief = null, instructions = null, onDelta, onEvent, shouldContinue }) {
   const settings = await loadSettings();
   const snapshot = agentSnapshot({
     agent_version: 'fine-print-dev',
@@ -167,6 +168,8 @@ async function turn({ threadId, inbound, listing, brief = null, onDelta, onEvent
   if (brief) {
     ephemeralContext.push(message({ role: 'system', text: `Listing brief for the property on screen (from Microburbs; computed, authoritative — quote these numbers):\n${JSON.stringify(brief)}` }));
   }
+  // Turn-specific instructions go LAST so they're the freshest thing the model reads.
+  if (instructions) ephemeralContext.push(message({ role: 'system', text: instructions }));
   return runTurn(snapshot, store, adapter, tools, {
     inbound,
     ephemeralContext,

@@ -13,6 +13,7 @@ import {
 } from '../runtime/index.js';
 import { addressFromPage, formatAddress } from './address.js';
 import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
+import { testBrief } from './test-data.js';
 import { microburbsTools } from './microburbs-tools.js';
 import { openAppDb, PropertyMemory, propertyMemoryTools } from './property-memory.js';
 import { pageContextText } from './page-context.js';
@@ -20,7 +21,7 @@ import { pageContextText } from './page-context.js';
 export const DEFAULT_SETTINGS = {
   provider: 'deepseek',
   model: 'deepseek-chat',
-  mbSource: 'proxy',
+  mbSource: 'test', // 'test' (bundled data) until the team key lands; then 'api'
   brief: { budget: 800000, deposit: 160000, minYield: 4.0, holdYears: 10 },
 };
 
@@ -76,7 +77,7 @@ export async function loadBrief({ listing, onProgress = () => {} }) {
   onProgress({ stage: 'address', ...address, text: formatAddress(address.parts) });
   const settings = await loadSettings();
   try {
-    const brief = await fetchListingBrief({
+    const brief = settings.mbSource === 'test' ? testBrief(address.parts, settings.brief) : await fetchListingBrief({
       parts: address.parts,
       source: settings.mbSource,
       secretProvider: new ChromeStorageSecretProvider(),

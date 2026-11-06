@@ -131,12 +131,17 @@ async function fetchBrief() {
   window.dispatchEvent(new CustomEvent('fineprint:brief', { detail: res }));
   console.log('[fine-print] brief', res);
   if (!res.ok) {
-    $('matched').textContent = `No exact match — ${res.message}${res.hint ? ` (${res.hint})` : ''}`;
+    $('matched').textContent =
+      res.reason === 'no_match' ? `No exact match — ${res.message}${res.hint ? ` (${res.hint})` : ''}`
+      : res.reason === 'no_address' ? res.message
+      : `Couldn't load Microburbs data — ${res.message}`;
     $('read').disabled = false; // the agent can still try / ask the investor
     return;
   }
   const b = res.brief;
-  $('matched').textContent = `Matched: ${b.property.address} · ${b.property.gnaf_id}${b.meta?.cached ? ' · cached' : ` · ${b.meta?.fetched_ms} ms`}`;
+  $('matched').textContent = b.meta?.test_data
+    ? `TEST DATA · ${b.property.address} (bundled figures, not live Microburbs)`
+    : `Matched: ${b.property.address} · ${b.property.gnaf_id}${b.meta?.cached ? ' · cached' : ` · ${b.meta?.fetched_ms} ms`}`;
   const rows = [
     ['Asking', money(b.price.asking)],
     ['Likely sale', money(b.price.likely_sale)],

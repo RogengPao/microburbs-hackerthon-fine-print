@@ -63,7 +63,8 @@ function renderMessage(m) {
     turnNo++;
     lastProse = null;
     firstReadOpen = m.text === FIRST_READ_TEXT; // the reply to "Read this listing." renders as the read card
-    thread.append(el('div', 'msg user', m.text));
+    // the automatic read's trigger isn't something the investor typed — don't show it
+    if (!firstReadOpen) thread.append(el('div', 'msg user', m.text));
   } else if (m.role === 'agent') {
     if ((m.text ?? '').trim() !== lastProse) thread.append(mdBubble(afterTrigger ? 'msg agent read' : 'msg agent', m.text));
     firstReadOpen = false;

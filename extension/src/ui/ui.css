@@ -5,6 +5,8 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; } /* class display rules (.setup, .data: flex) must not override the hidden attribute */
+/* Data card + 'Reading:' bar hidden in the product: the brief still loads (the read + cards use it); Copy JSON lives on as Settings → Export. */
+#data, #listing { display: none !important; }
 body { margin: 0; background: var(--paper); }
 button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 5px 10px; color: var(--ink); }
 .dim { color: var(--muted); }

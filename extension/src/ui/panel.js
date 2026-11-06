@@ -183,6 +183,12 @@ async function detectListing({ settleMs = 0 } = {}) {
   brief = null;
   $('data').hidden = !listing;
   if (listing) await fetchBrief();
+  // Agent reads first: a listing with an empty thread gets the read straight away
+  // (after onboarding — saving the brief triggers it instead).
+  if (listing && myRun === detectRun && !busy && !thread.querySelector('.msg')) {
+    const { onboarded } = await loadSettings();
+    if (onboarded) readListing();
+  }
 }
 
 const money = (n) => (n == null ? 'n/a' : `$${Math.round(n).toLocaleString('en-AU')}`);

@@ -4,7 +4,7 @@ Two parts: a **45-second team pitch** (just us talking, no screen) and a **short
 
 ---
 
-## Part 1 · 45-second pitch (~115 words)
+## Part 1 · 45-second pitch (~125 words — trim if a read-through runs over)
 
 The problem is two bad options. One idea per speaker; speak slower than feels natural.
 

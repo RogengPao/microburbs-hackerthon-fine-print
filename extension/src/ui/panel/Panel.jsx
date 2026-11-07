@@ -71,6 +71,17 @@ export default function Panel() {
     },
     [send, threadId, listing, loadedBrief, refreshQuestions],
   );
+  // The overview is a vanilla DOM block built once per brief, so its "tap to dig in" rows
+  // must not capture `ask` — that would keep sending to the thread that was current when
+  // it was drawn (after New, questions landed in the old chat). Always call the latest.
+  const askRef = useRef(ask);
+  askRef.current = ask;
+
+  // New thread: clean chat, default chips
+  const startNewThread = useCallback(async () => {
+    await newThread();
+    setQuestions(DEFAULT_QUESTIONS);
+  }, [newThread]);
 
   const onSaveBrief = async (b) => {
     await saveBrief(b);
@@ -79,6 +90,7 @@ export default function Panel() {
     setStoredBrief(s.brief);
     setShowSetup(false);
     setBriefVersion((v) => v + 1); // weekly cost etc. depend on the brief
+    await startNewThread(); // a new brief means new numbers — don't continue a chat built on the old ones
   };
 
   // The panel's ✕ asks the host (content script) to close; only reply to our own origin.
@@ -96,14 +108,14 @@ export default function Panel() {
   ) : (
     <DomNode
       className="overview"
-      build={() => renderOverview(brief.res.brief, brief.investor ?? settings?.brief ?? {}, { onAsk: (q) => ask(q) })}
+      build={() => renderOverview(brief.res.brief, brief.investor ?? settings?.brief ?? {}, { onAsk: (q) => askRef.current(q) })}
       deps={[brief.res, brief.investor]}
     />
   );
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded && !showSetup } : null} onBrief={() => setShowSetup((v) => !v)} onNew={newThread} onClose={onClose} />
+      <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded && !showSetup } : null} onBrief={() => setShowSetup((v) => !v)} onNew={startNewThread} onClose={onClose} />
       {showSetup ? (
         <Setup brief={storedBrief} onSave={onSaveBrief} />
       ) : (

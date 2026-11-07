@@ -15,10 +15,13 @@ export function useAgentThread() {
   const [turnMeta, setTurnMeta] = useState(null); // status · steps · tokens · seconds
   const [turnError, setTurnError] = useState(null);
   const busyRef = useRef(false);
+  const activeRef = useRef(null); // the thread on screen — a finishing turn for another thread must not replace it
 
   /** Load (or reload) the transcript for a thread. Returns the messages. */
   const load = useCallback(async (threadId) => {
+    activeRef.current = threadId;
     const msgs = await history(threadId);
+    if (activeRef.current !== threadId) return msgs; // switched again while loading
     setMessages(msgs);
     setLiveText(null);
     setStatusLine(null);
@@ -67,7 +70,8 @@ export function useAgentThread() {
             }
           },
         });
-        // re-read the transcript: it is the only state
+        // re-read the transcript: it is the only state — unless the user moved to another thread meanwhile
+        if (activeRef.current !== threadId) return;
         await load(threadId);
         const u = result.usage;
         setTurnMeta(

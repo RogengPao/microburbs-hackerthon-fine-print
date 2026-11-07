@@ -101,7 +101,7 @@ export default function Thread({ overview, messages, liveText, statusLine, event
       {liveText !== null && (
         <div className="md fp-live shrink-0 self-stretch px-0.5 text-[13.5px] leading-[1.6]" dangerouslySetInnerHTML={{ __html: renderMarkdown(liveText) }} />
       )}
-      {turnMeta && <div className={META_CLASS}>{turnMeta}</div>}
+      {/* turn stats (steps · tokens · cost) are debug data — not shown; Settings → Export has everything */}
       {turnError && <Message kind="error" text={turnError} />}
     </main>
   );

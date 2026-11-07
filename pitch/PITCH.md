@@ -4,23 +4,23 @@ Two parts: a **45-second team pitch** (just us talking, no screen) and a **short
 
 ---
 
-## Part 1 · 45-second pitch (~115 words)
+## Part 1 · 45-second pitch (~110 words)
 
 Problem first. One idea per speaker. Speak slower than feels natural.
 
-**Jake — the problem (~22s)**
+**Jake — the problem (~25s)**
 
 > Buying an investment property is an eight-hundred-thousand-dollar decision, made on a page written to sell it to you.
 >
-> The listing tells you the kitchen is light-filled. It doesn't tell you what you'll really pay — in Sydney, homes that beat their guide sold a median $117,500 over the top of it. It doesn't tell you what it'll cost you each week. And it doesn't tell you a build-to-rent tower finishes down the road in year three of your hold, competing for your tenant.
+> The listing tells you the kitchen is light-filled. It won't tell you what you'll really pay — Sydney homes that beat their guide sold a median $117,500 over it. It won't tell you what it costs you each week. Or that a build-to-rent tower finishes down the road halfway through your hold.
 
-**Carlos — what we built (~13s)**
+**Carlos — what we built (~12s)**
 
-> Fine Print sits beside every REA and Domain listing. Press F, and you see the likely sale price, your weekly cost, and when new supply lands — all from Microburbs data.
+> Fine Print sits beside every REA and Domain listing. Press F: the likely sale price, your weekly cost, and when new supply lands — from Microburbs data.
 
-**Yong — why people will use it (~10s)**
+**Yong — why people will use it (~8s)**
 
-> No sign-up, both portals, one key. Thirteen million Australians are on REA every month, and none of the extensions beside it tells you what a property will cost you each week. Fine Print: read it before you buy it.
+> No sign-up, both portals, one key. Fine Print: read it before you buy it.
 
 ---
 

@@ -473,3 +473,51 @@ button[data-tip] { cursor: pointer; }
 main#thread { min-height: 0; } /* scroll inside the full-height column (flex child needs min-height: 0) */
 .overview { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .ov-error { margin-top: 14px; }
+
+/* ---- reusable charts (charts.js) ---- */
+.fp-chart { --c-blue: var(--blue); --c-warn: var(--warn); --c-muted: #c9c2b3; --c-ink: var(--ink); font-size: 12px; color: var(--ink); }
+.fp-chart .t-blue { --c: var(--c-blue); } .fp-chart .t-warn { --c: var(--c-warn); } .fp-chart .t-muted { --c: var(--c-muted); } .fp-chart .t-ink { --c: var(--c-ink); }
+.fp-chart-title { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+.fp-empty { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 8px 0; }
+@keyframes fp-grow-w { from { width: 0; } }
+@keyframes fp-grow-h { from { height: 0; } }
+
+/* bars */
+.fp-bars { display: flex; flex-direction: column; gap: 6px; }
+.fp-bar { display: grid; grid-template-columns: minmax(70px, 34%) 1fr auto; align-items: center; gap: 10px; }
+.fp-bar-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-note { margin-left: 6px; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.fp-track { height: 8px; border-radius: 4px; background: #efebe2; overflow: hidden; }
+.fp-fill { height: 100%; width: var(--w); border-radius: 4px; background: var(--c); animation: fp-grow-w .6s cubic-bezier(.22,.8,.24,1) calc(var(--i) * 50ms) backwards; }
+.fp-bar-v { font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; text-align: right; min-width: 44px; }
+.fp-bar-v.warn { color: var(--warn-ink); }
+
+/* columns */
+.fp-cols-plot { display: flex; align-items: flex-end; gap: 6px; }
+.fp-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 3px; }
+.fp-col-area { flex: 1; min-height: 0; display: flex; align-items: flex-end; }
+.fp-col-bar { width: 100%; height: var(--h); min-height: 0; border-radius: 4px 4px 2px 2px; background: var(--c); animation: fp-grow-h .6s cubic-bezier(.22,.8,.24,1) calc(var(--i) * 40ms) backwards; }
+.fp-col-v { font-family: var(--mono); font-size: 10.5px; text-align: center; color: var(--ink); min-height: 13px; }
+.fp-col-x { font-family: var(--mono); font-size: 10px; text-align: center; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-cols .fp-col:hover .fp-col-bar { filter: brightness(1.08); }
+
+/* line */
+.fp-line-wrap { position: relative; }
+.fp-line-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.fp-grid { stroke: #efebe2; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.fp-area { fill: var(--blue); fill-opacity: .08; }
+.fp-stroke { fill: none; stroke: var(--blue); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; animation: fp-fade .5s ease both; }
+.fp-area { animation: fp-fade .7s ease both; }
+@keyframes fp-fade { from { opacity: 0; } }
+.fp-dot { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: #fff; border: 2px solid var(--c, var(--blue)); box-sizing: border-box; transition: transform .15s; }
+.fp-dot:hover, .fp-dot:focus-visible { transform: scale(1.4); outline: none; }
+.fp-line-axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* meter */
+.fp-meter-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.fp-meter-head b { font-family: var(--mono); font-weight: 500; }
+.fp-cells { display: flex; gap: 3px; }
+.fp-cell { flex: 1; height: 10px; border-radius: 2px; background: #eae5da; }
+.fp-cell.on { background: var(--c); animation: fp-cell-in .3s ease calc(var(--i) * 30ms) backwards; }
+@keyframes fp-cell-in { from { background: #eae5da; } }
+@media (prefers-reduced-motion: reduce) { .fp-fill, .fp-col-bar, .fp-stroke, .fp-cell.on { animation: none; } }

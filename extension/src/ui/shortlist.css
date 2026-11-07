@@ -97,3 +97,23 @@ button, select, input { font: inherit; color: var(--ink); }
 .dlg-actions span { flex: 1; }
 
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 10px; font-size: 12.5px; box-shadow: 0 12px 30px rgba(30,29,27,.25); }
+
+/* pinned columns (Property, Suburb) */
+.sheet .pin { position: sticky; z-index: 1; background: #fff; }
+.sheet thead th.pin { z-index: 4; background: var(--paper); }
+.sheet thead th.pin:hover { background: var(--card); }
+.sheet tfoot td { z-index: 2; }
+.sheet tfoot td.pin, .sheet tfoot td.rownum { z-index: 3; }
+.sheet tfoot td.pin { background: var(--paper); }
+.sheet .pin-last { box-shadow: 6px 0 8px -6px rgba(60,48,28,.16); border-right-color: #e2ddd2; }
+.sheet td.pin-last.cur { box-shadow: inset 0 0 0 2px var(--blue), 6px 0 8px -6px rgba(60,48,28,.16); }
+.sheet .pin-in { display: block; overflow: hidden; text-overflow: ellipsis; }
+
+/* placeholder rows */
+.sheet tr.ph td { cursor: default; color: #c9c2b3; }
+.sheet tr.ph td.rownum { color: #d6d0c3; }
+.sheet tbody tr.ph:hover td { background: #fff; }
+.sheet tbody tr.ph:hover td.rownum { background: var(--paper); }
+.sheet .ph-hint { font-size: 12px; color: var(--muted); }
+#brief { cursor: pointer; }
+#brief:hover { border-color: #cfc8b8; }

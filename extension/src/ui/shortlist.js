@@ -7,6 +7,7 @@ import { loadSettings } from '../agent/agent.js';
 import { IndexedDbPropertyBackend } from '../agent/property-memory.js';
 import { listingKey, shortlistRows } from '../agent/shortlist.js';
 import { compileFilter, compileFormula, formulaRefs, toCsv } from '../agent/sheet.js';
+import { openPage } from './open-page.js';
 
 const $ = (id) => document.getElementById(id);
 const h = (tag, cls, text) => {
@@ -63,6 +64,31 @@ const DEFAULT_CUSTOM = [
 ];
 const DEFAULT_HIDDEN = ['baths', 'parking', 'value', 'vacancy', 'agency', 'last_sold', 'budget_fit', 'yield_fit', 'supply_peak'];
 
+// pinned to the left (always first, stay put while you scroll sideways)
+const PINNED = ['address', 'suburb'];
+const PIN_MAX = { address: 230, suburb: 130 };
+const isPinned = (c) => PINNED.includes(c.id);
+let lastPin = null;
+function pin(el, c) {
+  if (!isPinned(c)) return el;
+  el.classList.add('pin');
+  el.dataset.pin = c.id;
+  if (c.id === lastPin) el.classList.add('pin-last');
+  return el;
+}
+/** Sticky left offsets = widths of the cells before each pinned column. */
+function layoutPins() {
+  const head = $('thead').rows[0];
+  if (!head) return;
+  const lefts = {};
+  let left = 0;
+  for (const th of head.cells) {
+    if (th.dataset.pin) lefts[th.dataset.pin] = left;
+    left += th.offsetWidth;
+  }
+  for (const el of $('sheet').querySelectorAll('[data-pin]')) el.style.left = `${lefts[el.dataset.pin]}px`;
+}
+
 // ---------------------------------------------------------------- state
 let rows = [];
 let sheet = null; // { order, hidden, sort, filters, custom, cells }
@@ -97,7 +123,10 @@ function columns() {
   const byId = new Map([...BUILT_IN.map((c) => [c.id, { ...c, fmt: c.type }]), ...custom.map((c) => [c.id, c])]);
   return sheet.order.map((id) => byId.get(id)).filter(Boolean);
 }
-const visible = () => columns().filter((c) => !sheet.hidden.includes(c.id));
+const visible = () => {
+  const v = columns().filter((c) => !sheet.hidden.includes(c.id));
+  return [...PINNED.map((id) => v.find((c) => c.id === id)).filter(Boolean), ...v.filter((c) => !isPinned(c))];
+};
 
 /** Every column's value for a row (built-ins, typed cells, then formulas in order). */
 function valuesOf(r) {
@@ -146,18 +175,19 @@ function view() {
 // ---------------------------------------------------------------- render
 function render() {
   const cols = visible();
+  lastPin = cols.filter(isPinned).at(-1)?.id ?? null;
   const data = view();
   $('count').textContent = rows.length ? `· ${data.length}${data.length !== rows.length ? ` of ${rows.length}` : ''}` : '';
-  $('empty').hidden = rows.length > 0;
-  $('sheet').hidden = rows.length === 0;
+  $('empty').hidden = true; // placeholder rows carry the empty state
 
   // header: sortable, draggable
   const hr = h('tr');
   hr.append(h('th', 'rownum', '#'));
   for (const c of cols) {
     const th = h('th', `${c.custom ? 'custom' : ''} ${['money', 'pct', 'number', 'weekly'].includes(c.fmt) ? 'num' : ''}`);
-    th.style.minWidth = `${c.width ?? 96}px`;
-    th.draggable = true;
+    if (!isPinned(c)) th.style.minWidth = `${c.width ?? 96}px`;
+    pin(th, c);
+    th.draggable = !isPinned(c);
     th.dataset.id = c.id;
     const lab = h('span', 'lab', c.label);
     const arrow = h('span', 'arrow', sheet.sort?.id === c.id ? (sheet.sort.dir > 0 ? '▲' : '▼') : '');
@@ -187,7 +217,7 @@ function render() {
     th.addEventListener('drop', (e) => {
       e.preventDefault();
       const from = e.dataTransfer.getData('text/col');
-      if (!from || from === c.id) return;
+      if (!from || from === c.id || isPinned(c)) return;
       sheet.order = sheet.order.filter((x) => x !== from);
       sheet.order.splice(sheet.order.indexOf(c.id), 0, from);
       saveSheet();
@@ -200,7 +230,7 @@ function render() {
   const fr = h('tr', 'filters');
   fr.append(h('th', 'rownum', ''));
   for (const c of cols) {
-    const th = h('th');
+    const th = pin(h('th'), c);
     const inp = h('input', 'filter');
     inp.placeholder = ['money', 'pct', 'number', 'weekly'].includes(c.fmt) ? '>, <, a-b' : 'filter';
     inp.value = sheet.filters[c.id] ?? '';
@@ -219,6 +249,7 @@ function render() {
 
 function renderBody() {
   const cols = visible();
+  lastPin = cols.filter(isPinned).at(-1)?.id ?? null;
   const data = view();
   // best / worst per numeric column with a direction
   const extremes = {};
@@ -239,6 +270,9 @@ function renderBody() {
       const td = h('td', `${['money', 'pct', 'number', 'weekly'].includes(c.fmt) ? 'num' : ''} ${c.editable ? 'editable' : ''} ${c.type === 'formula' ? 'formula' : ''}`);
       td.dataset.r = ri;
       td.dataset.c = ci;
+      pin(td, c);
+      const target = isPinned(c) ? td.appendChild(h('span', 'pin-in')) : td;
+      if (isPinned(c)) target.style.maxWidth = `${PIN_MAX[c.id]}px`;
       const val = v[c.id];
       if (c.link) {
         const a = h('a', null, FMT.text(val));
@@ -246,9 +280,9 @@ function renderBody() {
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         if (!r.analysed) a.append(h('span', 'pending', ' · not read yet'));
-        td.append(a);
+        target.append(a);
       } else {
-        td.textContent = FMT[c.fmt]?.(val) ?? '';
+        target.textContent = FMT[c.fmt]?.(val) ?? '';
       }
       const ex = extremes[c.id];
       if (ex && typeof val === 'number') {
@@ -276,7 +310,7 @@ function renderBody() {
   fr.append(h('td', 'rownum', 'avg'));
   for (const c of cols) {
     const vals = data.map(({ v }) => v[c.id]).filter((x) => typeof x === 'number');
-    const td = h('td', 'num');
+    const td = pin(h('td', 'num'), c);
     if (vals.length && ['money', 'pct', 'number', 'weekly'].includes(c.fmt) && !['beds', 'baths', 'parking', 'supply_peak'].includes(c.id)) {
       td.textContent = FMT[c.fmt](vals.reduce((a, b) => a + b, 0) / vals.length);
       td.title = `min ${FMT[c.fmt](Math.min(...vals))} · max ${FMT[c.fmt](Math.max(...vals))} · ${vals.length} values`;
@@ -285,7 +319,39 @@ function renderBody() {
   }
   fr.append(h('td'));
   $('tfoot').replaceChildren(fr);
+  fillPlaceholders(cols, data.length);
+  layoutPins();
 }
+
+/** Empty numbered rows below the real ones, enough to fill the sheet so the averages row sits at the bottom. */
+function fillPlaceholders(cols, n) {
+  const scroll = document.querySelector('.sh-scroll');
+  const table = $('sheet');
+  const body = $('tbody');
+  const make = (i) => {
+    const tr = h('tr', 'ph');
+    tr.append(h('td', 'rownum', n + i + 1));
+    cols.forEach((c, ci) => {
+      const td = pin(h('td'), c);
+      if (i === 0 && ci === 0) td.append(h('span', 'ph-hint', n ? '+ Add from REA or Domain' : 'Shortlist from REA or Domain'));
+      tr.append(td);
+    });
+    tr.append(h('td'));
+    return tr;
+  };
+  let i = 0;
+  body.append(make(i++));
+  const rowH = body.lastElementChild.offsetHeight || 33;
+  const more = Math.max(2, Math.floor((scroll.clientHeight - table.offsetHeight) / rowH));
+  for (let k = 0; k < more; k++) body.append(make(i++));
+  const gap = scroll.clientHeight - table.offsetHeight;
+  if (gap > 0) body.lastElementChild.style.height = `${body.lastElementChild.offsetHeight + gap}px`;
+}
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderBody, 80);
+});
 
 // ---------------------------------------------------------------- editing + keyboard
 function moveTo(r, c) {
@@ -523,6 +589,9 @@ $('csv').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 });
 
+$('settings').addEventListener('click', () => openPage('options.html'));
+$('brief').addEventListener('click', () => openPage('options.html'));
+$('brief').title = 'Your investor brief — click to change';
 $('search').addEventListener('input', (e) => {
   search = e.target.value.trim();
   renderBody();

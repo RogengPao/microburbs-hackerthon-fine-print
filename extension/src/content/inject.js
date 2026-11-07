@@ -104,20 +104,23 @@
          buttons (REA's "Ask AI", Domain's reCAPTCHA badge — both within ~75 px of the bottom)
          and below their sticky sidebars. Same spot on REA + Domain, listing + search pages.
          Expands on hover (or briefly when it appears) to show the headline numbers. */
-      .pill { position: fixed; right: 20px; bottom: 96px; z-index: 2147483646; display: none; align-items: center; gap: 9px;
-              padding: 7px; border-radius: 999px; border: 1px solid #e2ddd2; background: #fbfaf6; color: #1e1d1b;
+      .pill { position: fixed; right: 20px; bottom: 96px; z-index: 2147483646; display: none; align-items: center; gap: 0;
+              height: 40px; padding: 0; border-radius: 12px; border: none; background: #1e1d1b; color: #fbfaf6;
               font: 500 12.5px/16px Geist, -apple-system, system-ui, sans-serif; cursor: pointer;
-              box-shadow: 0 10px 30px rgba(60,48,28,.18), 0 1px 2px rgba(60,48,28,.08);
-              transition: box-shadow .2s ease, background .2s ease, transform .15s ease; animation: fp-pill-in .35s cubic-bezier(.22,.8,.24,1) backwards; }
-      .pill:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 14px 36px rgba(60,48,28,.22), 0 1px 2px rgba(60,48,28,.08); }
+              box-shadow: 0 10px 28px rgba(30,29,27,.28), 0 1px 2px rgba(30,29,27,.2);
+              transition: box-shadow .2s ease, transform .15s ease; animation: fp-pill-in .35s cubic-bezier(.22,.8,.24,1) backwards; }
+      .pill:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(30,29,27,.32), 0 1px 2px rgba(30,29,27,.2); }
       .pill.show { display: flex; }
+      /* the collapsed state IS the logo: a dark rounded square with the mark */
+      .pill .mark { width: 40px; height: 40px; border-radius: 12px; background: transparent; flex-shrink: 0; }
+      .pill .mark svg { width: 15px; height: 15px; }
       .pill .txt { display: flex; flex-direction: column; max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
-                   transition: max-width .32s cubic-bezier(.22,.8,.24,1), opacity .2s ease; }
-      .pill:hover .txt, .pill:focus-visible .txt, .pill.peek .txt { max-width: 240px; opacity: 1; margin-right: 5px; }
-      .pill .name { font-weight: 600; }
-      .pill .sum { color: #8c877d; font-size: 11.5px; }
-      .pill .sum b { color: #1e1d1b; font-weight: 600; }
-      .pill .sum b.warn { color: #9a6a00; }
+                   transition: max-width .32s cubic-bezier(.22,.8,.24,1), opacity .2s ease, padding .32s cubic-bezier(.22,.8,.24,1); }
+      .pill:hover .txt, .pill:focus-visible .txt, .pill.peek .txt { max-width: 240px; opacity: 1; padding-right: 14px; }
+      .pill .name { font-weight: 600; color: #fbfaf6; }
+      .pill .sum { color: #b9b3a6; font-size: 11.5px; }
+      .pill .sum b { color: #fff; font-weight: 600; }
+      .pill .sum b.warn { color: #f2c45a; }
       @keyframes fp-pill-in { from { opacity: 0; transform: translateY(8px); } }
       .mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #1e1d1b; }
       @media (prefers-reduced-motion: reduce) { .wrap, .shortlist, .pill { transition-duration: 1ms !important; animation: none !important; } }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { cleanBrief, loadSettings } from '../../agent/agent.js';
+import { loadSettings } from '../../agent/agent.js';
 
 const KEY_FIELDS = ['deepseek', 'openrouter', 'microburbs'];
 const BRIEF_FIELDS = ['budget', 'deposit', 'minYield', 'holdYears'];
@@ -35,12 +35,13 @@ export default function Options() {
   useEffect(() => {
     (async () => {
       const s = await loadSettings();
-      const { secrets = {} } = await chrome.storage.local.get('secrets');
+      // show the brief exactly as stored — loadSettings() fills blanks with defaults for the maths
+      const { secrets = {}, settings: raw = {} } = await chrome.storage.local.get(['secrets', 'settings']);
       setForm({
         provider: s.provider,
         model: s.model,
         mbSource: s.mbSource,
-        brief: Object.fromEntries(BRIEF_FIELDS.map((k) => [k, s.brief[k] ?? ''])),
+        brief: Object.fromEntries(BRIEF_FIELDS.map((k) => [k, Number(raw.brief?.[k]) > 0 ? raw.brief[k] : ''])),
         keys: Object.fromEntries(KEY_FIELDS.map((k) => [k, secrets[k] ?? ''])),
       });
     })();
@@ -93,7 +94,9 @@ export default function Options() {
       provider: form.provider,
       model: form.model.trim(),
       mbSource: form.mbSource,
-      brief: cleanBrief(Object.fromEntries(BRIEF_FIELDS.map((k) => [k, Number(form.brief[k])]))),
+      // store exactly what was entered: a cleared field stays empty (null), never silently
+      // reset to a default — the panel then shows onboarding until the brief is complete
+      brief: Object.fromEntries(BRIEF_FIELDS.map((k) => [k, String(form.brief[k] ?? '').trim() !== '' && Number(form.brief[k]) > 0 ? Number(form.brief[k]) : null])),
     };
     await chrome.storage.local.set({ settings, secrets });
     setSaved(true);

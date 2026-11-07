@@ -143,3 +143,16 @@ button.primary:disabled { opacity: .5; }
 .ov-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-value { white-space: nowrap; }
 .ov-chev { color: var(--muted); }
+
+/* onboarding fixes for the React panel: the save button must not grow to fill the
+   column (button.primary had flex:1 for the old data-card row), and inputs must fit
+   their grid cell */
+.setup .primary { flex: none; align-self: stretch; }
+.setup-row > label { min-width: 0; }
+.setup input:not([type=range]) { width: 100%; min-width: 0; box-sizing: border-box; }
+.setup { min-height: 0; }
+
+/* streaming reply: blinking cursor while the agent writes (was .msg.live in the vanilla panel) */
+.fp-live::after { content: '▍'; color: var(--muted); animation: fp-blink 1s steps(2) infinite; }
+@keyframes fp-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fp-live::after { animation: none; } }

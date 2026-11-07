@@ -78,7 +78,7 @@ export default function Thread({ overview, messages, liveText, statusLine, event
   }, [items.length, liveText, eventLines.length, statusLine, turnMeta, turnError]);
 
   return (
-    <main ref={mainRef} className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
+    <main ref={mainRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
       {overview}
       {items.map((it) => {
         if (it.kind === 'tool') return <ToolCall key={it.key} {...it} />;
@@ -101,7 +101,7 @@ export default function Thread({ overview, messages, liveText, statusLine, event
       {liveText !== null && (
         <div className="md fp-live shrink-0 self-stretch px-0.5 text-[13.5px] leading-[1.6]" dangerouslySetInnerHTML={{ __html: renderMarkdown(liveText) }} />
       )}
-      {turnMeta && <div className={META_CLASS}>{turnMeta}</div>}
+      {/* turn stats (steps · tokens · cost) are debug data — not shown; Settings → Export has everything */}
       {turnError && <Message kind="error" text={turnError} />}
     </main>
   );

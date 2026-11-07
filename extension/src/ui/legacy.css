@@ -1,50 +1,16 @@
+/* Styles for the native overview, agent cards, Markdown replies and onboarding —
+   ported from the pre-React ui.css. Scoped to their own classes so they don't fight
+   Tailwind. Imported by the panel entry after index.css. */
+
 :root {
   --paper: #fbfaf6; --card: #ffffff; --line: #e6e1d6; --ink: #1e1d1b; --muted: #8c877d;
   --blue: #2f64d9; --warn: #e3a008; --warn-ink: #9a6a00;
   font-family: Geist, -apple-system, system-ui, sans-serif; font-size: 13px; color: var(--ink);
 }
-* { box-sizing: border-box; }
-[hidden] { display: none !important; } /* class display rules (.setup, .data: flex) must not override the hidden attribute */
-/* Data card + 'Reading:' bar hidden in the product: the brief still loads (the read + cards use it); Copy JSON lives on as Settings → Export. */
-#data, #listing { display: none !important; }
-body { margin: 0; background: var(--paper); }
-button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 5px 10px; color: var(--ink); }
-.dim { color: var(--muted); }
+[hidden] { display: none !important; }
 
-/* panel */
-.panel { display: flex; flex-direction: column; height: 100vh; }
-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-.brand { font-weight: 600; display: flex; gap: 8px; align-items: center; }
-.mark { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: var(--ink); color: var(--paper); font-size: 11px; }
-.actions { display: flex; gap: 6px; }
-.listing { padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12px; }
-main { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-main > * { flex-shrink: 0; } /* scrolling column: items keep their height (cards have overflow:hidden → min-height 0 → squished to 0px) */
-.msg { padding: 8px 11px; border-radius: 12px; line-height: 1.45; white-space: pre-wrap; max-width: 92%; }
-.msg.user { align-self: flex-end; background: var(--ink); color: var(--paper); border-bottom-right-radius: 4px; }
-/* agent replies sit right on the page (ChatGPT/Claude style): no bubble, full width */
-.msg.agent { align-self: stretch; max-width: 100%; background: none; border: none; border-radius: 0; padding: 2px 2px 4px; font-size: 13.5px; line-height: 1.6; }
-.msg.agent.pre { color: var(--muted); font-style: italic; }
-.msg.live::after { content: '▍'; color: var(--muted); animation: fp-blink 1s steps(2) infinite; }
 @keyframes fp-blink { 50% { opacity: 0; } }
-.msg.error { background: #fdf3d7; color: var(--warn-ink); border: 1px solid var(--warn); }
 .meta { align-self: center; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10px; color: var(--muted); }
-details.tool { align-self: stretch; border: 1px solid var(--line); border-radius: 8px; background: #f6f3ec; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; }
-details.tool.err { border-color: var(--warn); }
-details.tool summary { display: flex; gap: 8px; padding: 6px 8px; cursor: pointer; }
-.tname { color: var(--blue); }
-.targs { flex: 1; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tstatus { color: var(--muted); }
-details.tool.err .tstatus { color: var(--warn-ink); }
-.tbody { margin: 0; padding: 8px; border-top: 1px solid var(--line); max-height: 260px; overflow: auto; white-space: pre-wrap; }
-.starters { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 12px 10px; }
-.starters button { border-radius: 14px; }
-.starters.loading button { opacity: .5; }
-form#ask { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--card); }
-textarea { flex: 1; resize: none; border: none; outline: none; font: inherit; background: transparent; }
-#send { width: 32px; height: 32px; border-radius: 16px; background: var(--ink); color: var(--paper); border: none; padding: 0; }
-#send:disabled { opacity: 0.4; }
-
 /* onboarding (placeholder for design A) */
 .setup { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .setup-title { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 34px; margin: 4px 0 0; letter-spacing: -.01em; }
@@ -60,63 +26,34 @@ textarea { flex: 1; resize: none; border: none; outline: none; font: inherit; ba
 .segmented button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(60,48,28,.1); }
 .setup .primary { margin-top: 6px; padding: 12px; border-radius: 12px; background: var(--ink); }
 .setup-foot { text-align: center; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10px; }
-.behind-setup { display: none !important; }
 .chip { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; background: #f3f0e8; }
-
-/* data card (placeholder for Carlos's widgets) */
-.data { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
-.matched { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted); }
-.figures { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
-.figures dt { color: var(--muted); }
-.figures dd { margin: 0; font-weight: 600; }
-.data-actions { display: flex; gap: 6px; }
 button.primary { flex: 1; background: var(--blue); color: #fff; border: none; font-weight: 600; padding: 8px 10px; }
 button.primary:disabled { opacity: .5; }
-
 /* markdown in agent bubbles */
-.msg.md { white-space: normal; }
-.msg.md > :first-child { margin-top: 0; }
-.msg.md > :last-child { margin-bottom: 0; }
-.msg.md p { margin: 0 0 8px; }
-.msg.md h3, .msg.md h4, .msg.md h5, .msg.md h6 { margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
-.msg.md h3 { font-size: 15px; }
-.msg.md h4, .msg.md h5, .msg.md h6 { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
-.msg.md ul, .msg.md ol { margin: 0 0 8px; padding-left: 18px; }
-.msg.md li { margin: 2px 0; }
-.msg.md li::marker { color: var(--muted); }
-.msg.md strong { font-weight: 600; }
-.msg.md code { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; background: #f3f0e8; border-radius: 4px; padding: 1px 4px; }
-.msg.md pre { background: #f3f0e8; border-radius: 8px; padding: 8px 10px; overflow-x: auto; margin: 0 0 8px; }
-.msg.md pre code { background: none; padding: 0; }
-.msg.md blockquote { margin: 0 0 8px; padding: 6px 10px; border-left: 3px solid var(--warn); background: #fdf6e3; border-radius: 0 6px 6px 0; color: var(--warn-ink); }
-.msg.md hr { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
-.msg.md a { color: var(--blue); text-decoration: none; border-bottom: 1px solid rgba(47,100,217,.3); }
-.msg.md table { border-collapse: collapse; width: 100%; margin: 0 0 8px; font-size: 12px; }
-.msg.md th, .msg.md td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
-.msg.md th { color: var(--muted); font-weight: 500; }
-.msg.md td:last-child, .msg.md th:last-child { text-align: right; }
-.msg.agent.pre.md { font-style: normal; }
-
-/* first read: plain-text estimates + warnings, full width */
-.msg.agent.read { padding: 2px 2px 4px; }
-
-/* embedded (floating iframe over the listing) */
-body.embedded { background: #fbfaf6; }
-body.embedded header { padding: 12px 14px 12px 18px; }
-body.embedded #close { width: 28px; height: 28px; padding: 0; border-radius: 8px; background: #f3f0e8; }
-
-/* options */
-.options { max-width: 560px; margin: 32px auto; padding: 0 16px; }
-fieldset { border: 1px solid var(--line); border-radius: 12px; margin: 0 0 16px; padding: 12px 14px; background: var(--card); }
-legend { font-weight: 600; padding: 0 4px; }
-label { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; color: var(--muted); }
-input, select { font: inherit; color: var(--ink); padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
-.msg.md thead tr:not(:has(th:not(:empty))) { display: none; } /* header-less tables ("| | |") */
-
-/* native overview: brief cards at the top of the thread */
+.md { white-space: normal; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p { margin: 0 0 8px; }
+.md h3, .md h4, .md h5, .md h6 { margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+.md h3 { font-size: 15px; }
+.md h4, .md h5, .md h6 { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.md ul, .md ol { margin: 0 0 8px; padding-left: 18px; }
+.md li { margin: 2px 0; }
+.md li::marker { color: var(--muted); }
+.md strong { font-weight: 600; }
+.md code { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; background: #f3f0e8; border-radius: 4px; padding: 1px 4px; }
+.md pre { background: #f3f0e8; border-radius: 8px; padding: 8px 10px; overflow-x: auto; margin: 0 0 8px; }
+.md pre code { background: none; padding: 0; }
+.md blockquote { margin: 0 0 8px; padding: 6px 10px; border-left: 3px solid var(--warn); background: #fdf6e3; border-radius: 0 6px 6px 0; color: var(--warn-ink); }
+.md hr { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
+.md a { color: var(--blue); text-decoration: none; border-bottom: 1px solid rgba(47,100,217,.3); }
+.md table { border-collapse: collapse; width: 100%; margin: 0 0 8px; font-size: 12px; }
+.md th, .md td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.md th { color: var(--muted); font-weight: 500; }
+.md td:last-child, .md th:last-child { text-align: right; }
+.md thead tr:not(:has(th:not(:empty))) { display: none; } /* header-less tables ("| | |") */
 .overview { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; }
 .overview > * { flex-shrink: 0; }
-
 /* ---- UI blocks (render_ui_block) — placeholder for the React cards ---- */
 .ub-card { align-self: stretch; border: 1px solid #e2ddd2; border-radius: 16px; background: var(--paper); overflow: hidden; box-shadow: 0 1px 2px rgba(60,48,28,.06), 0 10px 30px rgba(60,48,28,.06); }
 .ub-head { display: flex; justify-content: space-between; gap: 8px; padding: 9px 14px; background: #f6f3ec; border-bottom: 1px dashed #e2ddd2; font-size: 11px; }
@@ -163,7 +100,6 @@ input, select { font: inherit; color: var(--ink); padding: 7px 9px; border: 1px 
 .ub-caption { font-size: 12.5px; line-height: 1.5; }
 .ub-sources { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 9.5px; color: var(--muted); }
 .ub-slot { display: none; }
-
 /* ---- native overview (design B) — POC, Carlos polishes ---- */
 .ov { display: flex; flex-direction: column; border: 1px solid #e2ddd2; border-radius: 18px; background: var(--paper); overflow: hidden; }
 .ov-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px 4px; }

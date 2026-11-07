@@ -7,6 +7,7 @@ api-output/
 *.har
 
 node_modules/
+dist/
 .DS_Store
 
 # Day-only supplied files (7 Nov) — use on the day, never republish

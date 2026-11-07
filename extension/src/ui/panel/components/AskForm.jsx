@@ -30,9 +30,9 @@ export default function AskForm({ busy, onSend }) {
   return (
     <form
       onSubmit={submit}
-      className="flex shrink-0 items-center gap-2 border-t border-line bg-card px-4 py-5"
+      className="ask-bar"
     >
-      <div className="flex flex-1 items-center gap-2 rounded-[14px] border border-line bg-paper py-[7px] pl-[14px] pr-[7px] transition-colors focus-within:border-muted">
+      <div className="flex flex-1 items-center gap-2">
         <textarea
           ref={ref}
           rows={1}

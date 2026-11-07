@@ -431,6 +431,7 @@ $('s-save').addEventListener('click', async () => {
 });
 $('brief-chip').addEventListener('click', () => showSetup($('setup').hidden));
 
+$('open-shortlist').addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('src/ui/shortlist.html') }));
 $('new').addEventListener('click', newThread);
 $('read').addEventListener('click', readListing);
 $('copy-brief').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(window.finePrint?.result ?? null, null, 2)));

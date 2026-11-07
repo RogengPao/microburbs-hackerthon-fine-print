@@ -55,7 +55,7 @@ export const TEMPLATES = {
         { label: 'Your minimum', value_pct: 4, kind: 'minimum' },
       ],
       threshold_pct: 4,
-      caption: '4 one-bed rentals ≤ 1 km, median $775/wk ($740–815).',
+      caption: 'Rent from 4 similar 1-bedroom rentals within 1 km: median $775/wk (most between $740 and $815).',
       sources: ['listings/for-rent', 'market/yield-pct'],
     },
   },
@@ -460,7 +460,7 @@ const BUILDERS = {
       ...(diff != null && { badge: { text: `${diff >= 0 ? '+' : '−'}${Math.abs(diff)} pts vs your ${inv.minYield}%`, tone: diff >= 0 ? 'good' : 'warn' } }),
       rows,
       threshold_pct: inv?.minYield ?? 4,
-      caption: `${b.rent.comparables} ${b.property?.beds ?? ''}-bed rentals ≤ 1 km, median $${b.rent.weekly}/wk ($${b.rent.low}–${b.rent.high}).`.replace(' -bed', ''),
+      caption: `Rent from ${b.rent.comparables} similar ${b.property?.beds ? `${b.property.beds}-bedroom ` : ''}${b.rent.comparables === 1 ? 'rental' : 'rentals'} within 1 km: median $${b.rent.weekly}/wk (most between $${b.rent.low} and $${b.rent.high}).`,
       sources: ['listings/for-rent', 'market/yield-pct'],
     };
   },
@@ -471,7 +471,7 @@ const BUILDERS = {
       headline: String(s.new_dwellings_stated),
       badge: s.build_to_rent_dwellings > 0 ? { text: 'build-to-rent nearby', tone: 'warn' } : { text: `${s.applications} applications`, tone: 'neutral' },
       projects: s.largest.slice(0, 5).map((p) => ({ dwellings: p.dwellings, km: p.km, build_to_rent: p.build_to_rent, label: firstPart(p.address).slice(0, 48) })),
-      caption: `${s.applications} applications within ${s.radius_km ?? 1} km state ${s.new_dwellings_stated} new homes${s.build_to_rent_dwellings ? `, ${s.build_to_rent_dwellings} of them build-to-rent (they compete for tenants)` : ''}. DA stage is unknown.`,
+      caption: `${s.applications} ${s.applications === 1 ? 'application' : 'applications'} within ${s.radius_km ?? 1} km state ${s.new_dwellings_stated} new homes${s.build_to_rent_dwellings ? `, ${s.build_to_rent_dwellings} of them build-to-rent (they compete for tenants)` : ''}. DA stage is unknown.`,
       sources: ['development/da-list'],
     };
   },

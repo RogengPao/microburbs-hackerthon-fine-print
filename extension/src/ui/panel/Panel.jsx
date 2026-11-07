@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FIRST_READ_TEXT, history, loadSettings, onboardingState, saveBrief, suggestQuestions } from '../../agent/agent.js';
-import { renderOverview } from '../overview.js';
+import { renderOverview, renderOverviewLoading } from '../overview.js';
 import { useListing } from '../hooks/useListing.js';
 import { useBrief } from '../hooks/useBrief.js';
 import { useAgentThread } from '../hooks/useAgentThread.js';
@@ -12,7 +12,6 @@ import Starters from './components/Starters.jsx';
 import Thread from './components/Thread.jsx';
 
 const DEFAULT_QUESTIONS = ['What will it cost me weekly?', 'What should I offer?', 'Is new supply a risk here?'];
-const META = 'shrink-0 self-center font-mono text-[10px] text-muted';
 
 /**
  * The panel: onboarding on first run; then an instant native overview of the listing
@@ -99,10 +98,15 @@ export default function Panel() {
     if (parentOrigin) window.parent.postMessage({ type: 'fineprint:close' }, parentOrigin);
   };
 
+  // onboarding owns the whole panel: hide chips/composer styles keyed on body.in-setup
+  useEffect(() => {
+    document.body.classList.toggle('in-setup', showSetup);
+  }, [showSetup]);
+
   const overview = !listing ? null : brief.status === 'loading' || brief.status === 'idle' ? (
-    <div className={META}>Reading this listing…</div>
+    <DomNode className="overview" build={() => renderOverviewLoading()} deps={[listing]} />
   ) : brief.status === 'error' ? (
-    <div className={META}>
+    <div className="ov-error">
       {brief.res.reason === 'no_match' ? `No exact match — ${brief.res.message}${brief.res.hint ? ` (${brief.res.hint})` : ''}` : brief.res.reason === 'no_address' ? brief.res.message : `Couldn't load Microburbs data — ${brief.res.message}`}
     </div>
   ) : (
@@ -114,10 +118,10 @@ export default function Panel() {
   );
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded && !showSetup } : null} onBrief={() => setShowSetup((v) => !v)} onNew={startNewThread} onClose={onClose} />
+    <div className="panel">
+      <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded && !showSetup } : null} inSetup={showSetup} onBrief={() => setShowSetup((v) => !v)} onNew={startNewThread} onClose={onClose} />
       {showSetup ? (
-        <Setup brief={storedBrief} onSave={onSaveBrief} />
+        <Setup brief={storedBrief} listingHeading={listing?.page?.heading ?? null} onSave={onSaveBrief} />
       ) : (
         <>
           <Thread

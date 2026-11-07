@@ -59,14 +59,14 @@ export function useAgentThread() {
               setLiveText(null); // the persisted record re-renders below
             } else if (e.event === 'tool_start') {
               // people see the tool's label ("Checking rentals nearby…"), never its function name
-              setEventLines((ls) => [...ls, { id: e.call_id, text: `${e.label ?? e.name}…` }]);
+              setEventLines((ls) => [...ls, { id: e.call_id, text: e.label ?? e.name, state: 'running' }]);
             } else if (e.event === 'tool') {
               setEventLines((ls) => {
-                const text = `${e.error ? '✕' : '✓'} ${e.label ?? e.name}`;
-                return ls.some((l) => l.id === e.call_id) ? ls.map((l) => (l.id === e.call_id ? { ...l, text } : l)) : [...ls, { id: e.call_id, text }];
+                const line = { id: e.call_id, text: e.label ?? e.name, state: e.error ? 'err' : 'done' };
+                return ls.some((l) => l.id === e.call_id) ? ls.map((l) => (l.id === e.call_id ? line : l)) : [...ls, line];
               });
             } else if (e.event === 'retry') {
-              setEventLines((ls) => [...ls, { id: `retry${ls.length}`, text: `retrying (${e.reason})…` }]);
+              setEventLines((ls) => [...ls, { id: `retry${ls.length}`, text: 'Retrying…', state: 'running' }]);
             }
           },
         });

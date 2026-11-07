@@ -20,7 +20,7 @@
   const PANEL_W = 420;
   const GUTTER = 16;
   const SQUISH = PANEL_W + GUTTER * 2; // 452px reserved on the right
-  const PANEL_URL = chrome.runtime.getURL('src/ui/panel.html');
+  const PANEL_URL = chrome.runtime.getURL('panel.html'); // built by Vite into dist/
   const EXT_ORIGIN = new URL(PANEL_URL).origin;
   const listingKey = location.origin + location.pathname;
 

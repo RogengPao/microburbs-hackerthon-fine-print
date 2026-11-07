@@ -1,13 +1,17 @@
 # Fine Print — Chrome extension
 
-MV3 extension, plain ES modules, no build step. UI not started yet; this is the
-agent runtime + the extension shell.
+MV3 extension. The agent runtime is plain ES modules (no build, unit-tested);
+the UI (slide-out chat panel + options page) is React + Tailwind built with Vite
+into `dist/` — that folder is what Chrome loads.
 
 ```bash
-npm test                      # node --test, 27 tests, no dependencies
+npm test                      # node --test (runtime + agent logic, no build needed)
+npm run build                 # vite build (panel/options/background) + content script IIFE
+npm run watch                 # both builds in watch mode; reload the tab to pick up changes
 ```
 
-Load in Chrome: `chrome://extensions` → Developer mode → Load unpacked → this folder.
+Load in Chrome: `chrome://extensions` → Developer mode → Load unpacked → **`dist/`**.
+(Rebuild after pulling; reload the extension there if the manifest changed.)
 
 ## `src/runtime/` — hivemind-runtime, ported to JS
 

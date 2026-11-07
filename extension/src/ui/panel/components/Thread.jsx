@@ -104,14 +104,44 @@ export default function Thread({ overview, messages, liveText, statusLine, event
   const smoothText = useSmoothText(liveText);
   const mainRef = useRef(null);
   const prevUsers = useRef(0);
+  const stick = useRef(true); // following the bottom? set by the reader's own scrolling
+
+  // Pin to the bottom while following: re-pin whenever anything in the thread changes size —
+  // cards keep growing after they're inserted (animations, layout), so a one-off scroll
+  // after render lands short. Scrolling up stops following; back near the bottom resumes it.
   useEffect(() => {
     const el = mainRef.current;
-    if (!el) return;
-    // follow the stream only if the reader is at the bottom; always follow a sent message (Carlos)
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+    if (!el) return undefined;
+    const pin = () => {
+      if (stick.current) el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
+    };
+    const ro = new ResizeObserver(pin);
+    const observeAll = () => {
+      ro.disconnect();
+      for (const child of el.children) ro.observe(child);
+      pin();
+    };
+    const mo = new MutationObserver(observeAll);
+    mo.observe(el, { childList: true });
+    observeAll();
+    const onScroll = () => {
+      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
+  // a message you just sent always brings you back to the bottom (Carlos)
+  useEffect(() => {
     const users = items.reduce((n, i) => n + (i.kind === 'user' ? 1 : 0), 0);
-    if (nearBottom || users !== prevUsers.current) el.scrollTop = el.scrollHeight;
+    if (users !== prevUsers.current) stick.current = true;
     prevUsers.current = users;
+    const el = mainRef.current;
+    if (el && stick.current) el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
   }, [items, liveText, eventLines.length, statusLine, turnMeta, turnError]);
 
   return (

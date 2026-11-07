@@ -156,7 +156,7 @@ export const TEMPLATES = {
         caption: COMMON.caption,
         sources: COMMON.sources,
       },
-      ['headline', 'estimate', 'low', 'high', 'confidence', 'caption', 'sources'],
+      ['headline', 'estimate', 'low', 'high', 'caption', 'sources'], // confidence: only Microburbs' AVM has one
     ),
     example: {
       headline: '$713K',
@@ -517,10 +517,12 @@ const BUILDERS = {
       estimate: v.estimate,
       low: v.low,
       high: v.high,
-      confidence: v.confidence,
+      ...(Number.isFinite(v.confidence) && { confidence: v.confidence }),
       ...(b.price.asking && { asking: b.price.asking }),
       ...(b.price.likely_sale && { likely: b.price.likely_sale }),
-      caption: 'A computer valuation from recent nearby sales — a second opinion on price, not a bank valuation.',
+      caption: Number.isFinite(v.confidence)
+        ? 'A computer valuation from recent nearby sales — a second opinion on price, not a bank valuation.'
+        : `From the ${v.basis ?? 'recent sales nearby'} — Microburbs has no automated valuation for this one. A second opinion, not a bank valuation.`,
       sources: ['valuation/avm'],
     };
   },
@@ -618,9 +620,16 @@ const BUILDERS = {
 
 /** template + brief → a card body (throws Unavailable when the data isn't there). */
 export function cardFromBrief(template, brief, investor = {}, extra = {}) {
-  const body = BUILDERS[template](brief, investor, extra);
+  const body = dropNulls(BUILDERS[template](brief, investor, extra));
   if (extra.caption) body.caption = extra.caption;
   return body;
+}
+
+/** Missing data is left OUT of a card (optional fields), never sent as null — schemas type fields as numbers. */
+function dropNulls(x) {
+  if (Array.isArray(x)) return x.map(dropNulls);
+  if (x && typeof x === 'object') return Object.fromEntries(Object.entries(x).filter(([, v]) => v != null).map(([k, v]) => [k, dropNulls(v)]));
+  return x;
 }
 
 // ---------------------------------------------------------------- the tool

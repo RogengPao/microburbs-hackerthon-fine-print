@@ -83,6 +83,36 @@ export const TEMPLATES = {
       sources: ['development/da-list', 'market/vacancy-rate-series'],
     },
   },
+  supply_timeline: {
+    title: 'show_supply_timeline',
+    question: 'When does the new supply land?',
+    purpose: 'WHEN new homes near the property complete, year by year across the hold — the build-to-rent wave vs when you re-lease.',
+    schema: obj(
+      {
+        headline: COMMON.headline,
+        badge,
+        years: arr(obj({ year: { type: 'integer', minimum: 2000, maximum: 2100 }, hold_year: { type: 'integer', minimum: 1, maximum: 40 }, dwellings: { type: 'integer', minimum: 0 }, build_to_rent: { type: 'integer', minimum: 0 } }), 1, 16),
+        already_built: { type: 'integer', minimum: 0 },
+        caption: COMMON.caption,
+        sources: COMMON.sources,
+      },
+      ['headline', 'years', 'caption', 'sources'],
+    ),
+    example: {
+      headline: '2031 · yr 6',
+      badge: { text: 'build-to-rent wave', tone: 'warn' },
+      years: [
+        { year: 2028, hold_year: 3, dwellings: 40, build_to_rent: 0 },
+        { year: 2029, hold_year: 4, dwellings: 80, build_to_rent: 0 },
+        { year: 2030, hold_year: 5, dwellings: 166, build_to_rent: 126 },
+        { year: 2031, hold_year: 6, dwellings: 252, build_to_rent: 252 },
+        { year: 2032, hold_year: 7, dwellings: 126, build_to_rent: 126 },
+      ],
+      already_built: 376,
+      caption: '504 build-to-rent homes most likely complete around 2031 — year 6 of your hold.',
+      sources: ['development/da-list'],
+    },
+  },
   cash_flow: {
     title: 'show_weekly_cash_flow',
     question: 'What will it cost me?',
@@ -442,6 +472,23 @@ const BUILDERS = {
       badge: s.build_to_rent_dwellings > 0 ? { text: 'build-to-rent nearby', tone: 'warn' } : { text: `${s.applications} applications`, tone: 'neutral' },
       projects: s.largest.slice(0, 5).map((p) => ({ dwellings: p.dwellings, km: p.km, build_to_rent: p.build_to_rent, label: firstPart(p.address).slice(0, 48) })),
       caption: `${s.applications} applications within ${s.radius_km ?? 1} km state ${s.new_dwellings_stated} new homes${s.build_to_rent_dwellings ? `, ${s.build_to_rent_dwellings} of them build-to-rent (they compete for tenants)` : ''}. DA stage is unknown.`,
+      sources: ['development/da-list'],
+    };
+  },
+  supply_timeline(b) {
+    const t = b.supply?.timeline;
+    need(t?.peak, 'no future supply with dates within 1 km');
+    const years = t.years.filter((y) => y.dwellings > 0);
+    const btrPeak = t.peak.build_to_rent > 0;
+    const biggest = t.projects?.find((p) => p.status === 'future');
+    return {
+      headline: `${t.peak.year} · yr ${t.peak.hold_year}`,
+      badge: btrPeak ? { text: 'build-to-rent wave', tone: 'warn' } : { text: `${t.future_total} homes coming`, tone: t.future_total >= 300 ? 'warn' : 'neutral' },
+      years: years.length ? years : t.years.slice(0, 1),
+      ...(t.likely_built ? { already_built: t.likely_built } : {}),
+      caption: (biggest
+        ? `${biggest.dwellings} ${biggest.build_to_rent ? 'build-to-rent ' : ''}homes at ${String(biggest.address).split(',')[0]} most likely complete around ${biggest.likely_year} — year ${biggest.likely_year - t.years[0].year + 1} of your hold.`
+        : `${t.future_total} homes land over your hold.`) + (t.likely_built ? ` ${t.likely_built} more are likely already built.` : ''),
       sources: ['development/da-list'],
     };
   },

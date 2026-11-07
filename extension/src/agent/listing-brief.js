@@ -12,6 +12,7 @@ import { tool, ToolError } from '../runtime/index.js';
 import { AllowlistHttpClient } from '../runtime/tools/http.js';
 import { SOURCES } from './microburbs-tools.js';
 import { findProperty, formatAddress, parseAddress, unresolvedHint } from './address.js';
+import { supplyTimeline } from './supply-timeline.js';
 
 // ---------------------------------------------------------------- geography
 // Exact SAL names (verified against geocode/suburb, 7 Nov) + approx centroids.
@@ -227,6 +228,8 @@ export function computeBrief(raw, { investor = {}, rate = 0.06, ratesInsuranceWe
       applications: pipeline.length,
       build_to_rent_dwellings: pipeline.filter((p) => p.build_to_rent).reduce((s, p) => s + p.dwellings, 0),
       largest: pipeline.slice(0, 5),
+      // WHEN it lands vs the hold — the temporal supply risk (see supply-timeline.js)
+      timeline: supplyTimeline(pipeline, { holdYears: investor.holdYears ?? 10 }),
       competing_rentals_same_beds: comps.length,
       caveat: 'DA stage unknown; older applications may be built or lapsed',
     },
@@ -255,21 +258,56 @@ export function computeBrief(raw, { investor = {}, rate = 0.06, ratesInsuranceWe
 // ---------------------------------------------------------------- fetch + tool
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 
-async function cacheGet(key) {
+// Two cache tiers, both best-effort: in-memory (this page / node) and chrome.storage.
+const memCache = new Map();
+async function cacheGet(key, ttl = CACHE_TTL_MS) {
+  const m = memCache.get(key);
+  if (m && Date.now() - m.at < ttl) return m.value;
   try {
     const hit = (await chrome.storage.local.get(key))[key];
-    return hit && Date.now() - hit.at < CACHE_TTL_MS ? hit.brief : null;
+    return hit && Date.now() - hit.at < ttl ? (hit.brief ?? hit.value) : null;
   } catch {
     return null;
   }
 }
-async function cacheSet(key, brief) {
+async function cacheSet(key, value) {
+  memCache.set(key, { at: Date.now(), value });
   try {
-    await chrome.storage.local.set({ [key]: { at: Date.now(), brief } });
+    await chrome.storage.local.set({ [key]: { at: Date.now(), value } });
   } catch {
     /* cache is best-effort */
   }
 }
+
+// ---------------------------------------------------------------- rate limits
+// The team key is rate-limited (HTTP 429 after ~60–70 calls in a short window; seen
+// 7 Nov). A brief makes ~21 calls, so: at most 6 in flight, 429/5xx retried with
+// backoff (honouring Retry-After), and suburb-level data cached so the next listing
+// in the same area costs ~11 calls, not 21.
+const MAX_IN_FLIGHT = 6;
+let inFlight = 0;
+const queue = [];
+async function limited(fn) {
+  if (inFlight >= MAX_IN_FLIGHT) await new Promise((r) => queue.push(r));
+  inFlight++;
+  try {
+    return await fn();
+  } finally {
+    inFlight--;
+    queue.shift()?.();
+  }
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+export const backoffMs = (attempt, retryAfter) => {
+  const ra = Number(retryAfter);
+  if (Number.isFinite(ra) && ra > 0) return Math.min(ra * 1000, 8000);
+  return Math.min(500 * 2 ** attempt, 4000) + Math.floor(Math.random() * 250);
+};
+
+// Suburb-level endpoints change slowly — cache their (projected) data per suburb.
+const SUBURB_TTL_MS = 6 * 3600 * 1000;
+const projectRentals = (d) => (d?.results ?? []).map((r) => ({ gnaf_pid: r.gnaf_pid, area_name: r.area_name, price: r.price, property_type: r.property_type, property_type_raw: r.property_type_raw, attributes: { bedrooms: r.attributes?.bedrooms }, coordinates: r.coordinates, listing_date: r.listing_date }));
+const projectDas = (d) => (d ?? []).map((x) => ({ area_name: x.area_name, description: x.description, date: x.date, category: x.category, lat: x.lat, lng: x.lng }));
 
 /**
  * Fetch + compute a brief for an address. Throws a ToolError-shaped err on no match.
@@ -279,13 +317,37 @@ export async function fetchListingBrief({ address = null, parts = null, source =
   const s = SOURCES[source];
   const http = new AllowlistHttpClient([s.host], { timeoutS: 20, fetch: fetchImpl, credentials: s.auth ? 'omit' : 'include' });
   const headers = s.auth ? { Authorization: `Bearer ${await secretProvider.get('microburbs')}` } : {};
-  const get = async (path, params) => {
-    const res = await http.get(`${s.base}${path}`, { params, headers });
-    if (res.status === 404) return null;
-    if (res.status >= 400) throw new Error(`${path} → HTTP ${res.status}`);
-    return JSON.parse(res.text)?.data ?? null;
+  const get = (path, params) =>
+    limited(async () => {
+      for (let attempt = 0; ; attempt++) {
+        const res = await http.get(`${s.base}${path}`, { params, headers });
+        if (res.status === 404) return null;
+        if ((res.status === 429 || res.status >= 500) && attempt < 3) {
+          await sleep(backoffMs(attempt, res.headers?.['retry-after']));
+          continue;
+        }
+        if (res.status === 429) throw new Error(`${path} → rate limited (HTTP 429)`);
+        if (res.status >= 400) throw new Error(`${path} → HTTP ${res.status}`);
+        return JSON.parse(res.text)?.data ?? null;
+      }
+    });
+  const failed = [];
+  // one endpoint failing must not sink the brief — but it's recorded, never silent
+  const soft = (p, label) =>
+    p.catch((e) => {
+      failed.push(label ?? String(e?.message ?? e));
+      return null;
+    });
+  const bySuburb = async (sub, path, params, project) => {
+    const key = `sub:${sub}:${path}`;
+    const hit = await cacheGet(key, SUBURB_TTL_MS);
+    if (hit) return hit;
+    const raw = await soft(get(`/suburbs/${encodeURIComponent(sub)}/${path}`, params), `${sub} ${path}`);
+    if (raw == null) return project(null);
+    const value = project(raw);
+    await cacheSet(key, value);
+    return value;
   };
-  const soft = (p) => p.catch(() => null); // one endpoint failing must not sink the brief
 
   const t0 = Date.now();
   // Strict match: unit + number + street + suburb. The pipeline retries looser
@@ -309,25 +371,25 @@ export async function fetchListingBrief({ address = null, parts = null, source =
 
   const g = match.id;
   const subs = suburbsNear(match.sal);
-  const enc = encodeURIComponent;
   const [avm, quoting, history, risks, basics, sales, nearby, market, strata, vacancy, rentals, das] = await Promise.all([
-    soft(get(`/properties/${g}/valuation/avm`)),
-    soft(get(`/properties/${g}/valuation/agent-quoting`)),
-    soft(get(`/properties/${g}/history/all`)),
-    soft(get(`/properties/${g}/risks/all`)),
-    soft(get(`/properties/${g}/basics/all`)),
-    soft(get(`/properties/${g}/comparables/recent-sales-nearby`)),
-    soft(get(`/properties/${g}/context/nearby-for-sale`)),
-    soft(get(`/suburbs/${enc(match.sal)}/market/all`)),
-    soft(get(`/suburbs/${enc(match.sal)}/market/strata-levies`)),
-    soft(get(`/suburbs/${enc(match.sal)}/market/vacancy-rate-series`)),
-    Promise.all(subs.map((sub) => soft(get(`/suburbs/${enc(sub)}/listings/for-rent`, { limit: '200' })).then((d) => d?.results ?? []))),
-    Promise.all(subs.map((sub) => soft(get(`/suburbs/${enc(sub)}/development/da-list`)).then((d) => d ?? []))),
+    soft(get(`/properties/${g}/valuation/avm`), 'valuation'),
+    soft(get(`/properties/${g}/valuation/agent-quoting`), 'agency quoting'),
+    soft(get(`/properties/${g}/history/all`), 'history'),
+    soft(get(`/properties/${g}/risks/all`), 'hazards'),
+    soft(get(`/properties/${g}/basics/all`), 'basics'),
+    soft(get(`/properties/${g}/comparables/recent-sales-nearby`), 'recent sales'),
+    soft(get(`/properties/${g}/context/nearby-for-sale`), 'location'),
+    bySuburb(match.sal, 'market/all', null, (d) => d),
+    bySuburb(match.sal, 'market/strata-levies', null, (d) => d),
+    bySuburb(match.sal, 'market/vacancy-rate-series', null, (d) => d),
+    Promise.all(subs.map((sub) => bySuburb(sub, 'listings/for-rent', { limit: '200' }, projectRentals))),
+    Promise.all(subs.map((sub) => bySuburb(sub, 'development/da-list', null, projectDas))),
   ]);
 
   const brief = computeBrief({ match, avm, quoting, history, risks, basics, sales, nearby, market, strata, vacancy, rentals, das }, { investor });
-  brief.meta = { suburbs_searched: subs, fetched_ms: Date.now() - t0, fetched_at: new Date().toISOString(), source: 'Microburbs API' };
-  await cacheSet(cacheKey, brief);
+  brief.meta = { suburbs_searched: subs, fetched_ms: Date.now() - t0, fetched_at: new Date().toISOString(), source: 'Microburbs API', ...(failed.length ? { partial: failed } : {}) };
+  // a partial brief (e.g. rate-limited) is shown but never cached — the next open retries
+  if (!failed.length) await cacheSet(cacheKey, brief);
   return brief;
 }
 

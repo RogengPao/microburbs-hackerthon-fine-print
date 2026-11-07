@@ -86,6 +86,14 @@ const BODIES = {
     }
     return out;
   },
+  supply_timeline(b) {
+    const max = Math.max(...b.years.map((y) => y.dwellings)) || 1;
+    const box = h('div', 'ub-box');
+    for (const y of b.years) box.append(barRow(`${y.year} · yr ${y.hold_year}`, (y.dwellings / max) * 100, `${y.dwellings}`, y.build_to_rent > 0 ? 'warn' : 'muted', y.build_to_rent ? `${y.build_to_rent} build-to-rent` : null));
+    const out = [box];
+    if (b.already_built) out.push(h('div', 'ub-sub', `+ ${b.already_built} likely already built (in today's market)`));
+    return out;
+  },
   cash_flow(b) {
     const max = Math.max(...b.lines.map((l) => Math.abs(l.weekly))) || 1;
     const box = h('div', 'ub-box');
@@ -165,8 +173,7 @@ const BODIES = {
 export function renderBlock(template, body) {
   const t = TEMPLATES[template];
   const card = h('div', `ub-card ub-${template}`);
-  const head = h('div', 'ub-head');
-  head.append(h('span', 'ub-title', t?.title ?? template), h('span', 'ub-question', `"${t?.question ?? ''}"`));
+  // no header row: the card speaks for itself (tool names aren't for investors)
   const main = h('div', 'ub-main');
   const top = h('div', 'ub-top');
   top.append(h('div', 'ub-headline', body.headline));
@@ -180,7 +187,7 @@ export function renderBlock(template, body) {
     main.append(h('div', 'ub-caption', `(could not draw this card: ${e.message})`));
   }
   if (body.caption) main.append(h('div', 'ub-caption', body.caption));
-  if (body.sources?.length) main.append(h('div', 'ub-sources', body.sources.join(' · ')));
-  card.append(head, main);
+  // body.sources (API routes) stay internal — the UI is for investors, not developers
+  card.append(main);
   return card;
 }

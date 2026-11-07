@@ -36,8 +36,8 @@ test('asking falls back to an active For Sale history row', () => {
 
 test('supply: only stated dwellings within 1 km; build-to-rent flagged', () => {
   const b = computeBrief(RAW, { investor: INVESTOR });
-  assert.equal(b.supply.applications, 1);
-  assert.equal(b.supply.new_dwellings_stated, 504);
+  assert.equal(b.supply.applications, 4); // 504 BTR + 376 + 111 + 48; the 3.3 km one and the no-dwellings one are out
+  assert.equal(b.supply.new_dwellings_stated, 1039);
   assert.equal(b.supply.build_to_rent_dwellings, 504);
   assert.ok(b.supply.largest[0].km > 0.6 && b.supply.largest[0].km < 0.7); // ~640 m
 });
@@ -73,5 +73,5 @@ test('bundled test data: brief for the address on screen, clearly marked', async
   assert.equal(b.property.gnaf_id, 'TEST-1711-301-BOTANY-ROAD-ZETLAND');
   assert.equal(b.meta.test_data, true);
   assert.equal(b.rent.weekly, 775); // the fixture's figures
-  assert.equal(b.supply.new_dwellings_stated, 504);
+  assert.equal(b.supply.new_dwellings_stated, 1039);
 });

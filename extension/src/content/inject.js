@@ -100,15 +100,16 @@
       .shortlist.done svg path { fill: #fff; }
       .shortlist.pop { animation: fp-pop .35s cubic-bezier(.2,.8,.2,1); }
       @keyframes fp-pop { 40% { transform: scale(1.02); } }
-      /* collapsed state: a slim tab tucked into the right edge, mid-height — clear of the
-         portals' own bottom-right buttons. Widens on hover (or briefly when a read lands)
-         to show the headline numbers. */
-      .pill { position: fixed; right: 0; top: 50%; z-index: 2147483646; display: none; align-items: center; gap: 9px;
-              padding: 9px 10px 9px 9px; border-radius: 14px 0 0 14px; border: 1px solid #e2ddd2; border-right: none;
-              background: #fbfaf6; color: #1e1d1b; font: 500 12.5px/16px Geist, -apple-system, system-ui, sans-serif; cursor: pointer;
-              box-shadow: -8px 12px 32px rgba(60,48,28,.16), 0 1px 2px rgba(60,48,28,.08); transform: translateY(-50%);
-              transition: box-shadow .2s ease, background .2s ease; animation: fp-tab-in .4s cubic-bezier(.22,.8,.24,1) backwards; }
-      .pill:hover { background: #fff; box-shadow: -10px 14px 36px rgba(60,48,28,.2), 0 1px 2px rgba(60,48,28,.08); }
+      /* collapsed state: a compact pill bottom-right, stacked ABOVE the portals' own corner
+         buttons (REA's "Ask AI", Domain's reCAPTCHA badge — both within ~75 px of the bottom)
+         and below their sticky sidebars. Same spot on REA + Domain, listing + search pages.
+         Expands on hover (or briefly when it appears) to show the headline numbers. */
+      .pill { position: fixed; right: 20px; bottom: 96px; z-index: 2147483646; display: none; align-items: center; gap: 9px;
+              padding: 7px 9px 7px 7px; border-radius: 999px; border: 1px solid #e2ddd2; background: #fbfaf6; color: #1e1d1b;
+              font: 500 12.5px/16px Geist, -apple-system, system-ui, sans-serif; cursor: pointer;
+              box-shadow: 0 10px 30px rgba(60,48,28,.18), 0 1px 2px rgba(60,48,28,.08);
+              transition: box-shadow .2s ease, background .2s ease, transform .15s ease; animation: fp-pill-in .35s cubic-bezier(.22,.8,.24,1) backwards; }
+      .pill:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 14px 36px rgba(60,48,28,.22), 0 1px 2px rgba(60,48,28,.08); }
       .pill.show { display: flex; }
       .pill .txt { display: flex; flex-direction: column; max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
                    transition: max-width .32s cubic-bezier(.22,.8,.24,1), opacity .2s ease; }
@@ -119,7 +120,7 @@
       .pill .sum b.warn { color: #9a6a00; }
       .pill kbd { font: 500 10px/14px 'Geist Mono', ui-monospace, monospace; padding: 1px 5px; border-radius: 4px; color: #8c877d;
                   background: #f3f0e8; border: 1px solid #e6e1d6; }
-      @keyframes fp-tab-in { from { transform: translate(100%, -50%); } to { transform: translate(0, -50%); } }
+      @keyframes fp-pill-in { from { opacity: 0; transform: translateY(8px); } }
       .mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #1e1d1b; }
       @media (prefers-reduced-motion: reduce) { .wrap, .shortlist, .pill { transition-duration: 1ms !important; animation: none !important; } }
     </style>

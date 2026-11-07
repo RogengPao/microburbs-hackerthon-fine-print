@@ -1,11 +1,32 @@
 import { useEffect, useState } from 'react';
-import { loadSettings } from '../../agent/agent.js';
+import { cleanBrief, loadSettings } from '../../agent/agent.js';
 
 const KEY_FIELDS = ['deepseek', 'openrouter', 'microburbs'];
 const BRIEF_FIELDS = ['budget', 'deposit', 'minYield', 'holdYears'];
 const LABEL_CLASS = 'my-2 flex flex-col gap-1 text-muted';
 
 const initialForm = { provider: '', model: '', mbSource: '', brief: {}, keys: {} };
+
+/** Every store in the extension's IndexedDB, read generically (whatever version it's at). */
+function dumpIndexedDb(name = 'fine-print') {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(name);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = async () => {
+      const db = req.result;
+      const out = { name, version: db.version, stores: {} };
+      for (const store of db.objectStoreNames) {
+        out.stores[store] = await new Promise((res, rej) => {
+          const r = db.transaction(store).objectStore(store).getAll();
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+      }
+      db.close();
+      resolve(out);
+    };
+  });
+}
 
 export default function Options() {
   const [form, setForm] = useState(initialForm);
@@ -39,14 +60,40 @@ export default function Options() {
     });
   };
 
+  const [exported, setExported] = useState('');
+  const exportData = async () => {
+    setExported('Exporting…');
+    try {
+      const { secrets, ...storage } = await chrome.storage.local.get(null); // never export API keys
+      const data = {
+        exported_at: new Date().toISOString(),
+        extension_version: chrome.runtime.getManifest().version,
+        secrets_present: Object.keys(secrets ?? {}).filter((k) => secrets[k]),
+        chrome_storage_local: storage,
+        indexeddb: await dumpIndexedDb(),
+      };
+      const json = JSON.stringify(data, null, 2);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      a.download = `fine-print-export-${data.exported_at.slice(0, 19).replace(/[:T]/g, '-')}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      setExported(`Downloaded (${Math.round(json.length / 1024)} KB)`);
+    } catch (e) {
+      setExported(`Export failed: ${e.message}`);
+    }
+  };
+
   const save = async () => {
     // empty keys are dropped — clearing a field forgets the key
     const secrets = Object.fromEntries(KEY_FIELDS.map((k) => [k, form.keys[k].trim()]).filter(([, v]) => v));
+    const { settings: prev = {} } = await chrome.storage.local.get('settings');
     const settings = {
+      ...prev, // keeps `onboarded` and anything else the panel stores
       provider: form.provider,
       model: form.model.trim(),
       mbSource: form.mbSource,
-      brief: Object.fromEntries(BRIEF_FIELDS.map((k) => [k, Number(form.brief[k])])),
+      brief: cleanBrief(Object.fromEntries(BRIEF_FIELDS.map((k) => [k, Number(form.brief[k])]))),
     };
     await chrome.storage.local.set({ settings, secrets });
     setSaved(true);
@@ -90,6 +137,7 @@ export default function Options() {
         <label className={LABEL_CLASS}>
           Source
           <select value={form.mbSource} onChange={(e) => set('mbSource', e.target.value)}>
+            <option value="test">Test data (bundled, no network)</option>
             <option value="proxy">Demo proxy (uses your Chrome session — visit microburbs-api-demos.vercel.app first)</option>
             <option value="api">Hackathon API (team key)</option>
           </select>
@@ -121,6 +169,12 @@ export default function Options() {
       </fieldset>
 
       <button onClick={save}>Save</button> <span className="text-muted">{saved ? 'Saved.' : ''}</span>
+
+      <fieldset className="mt-6 rounded-xl border border-line bg-card px-3.5 py-3">
+        <legend className="px-1 font-semibold">Debug</legend>
+        <p className="mb-2 text-muted">Download everything stored locally (transcripts, saved properties, card lessons, settings) as one JSON file. API keys are removed.</p>
+        <button onClick={exportData}>Export data (JSON)</button> <span className="text-muted">{exported}</span>
+      </fieldset>
     </div>
   );
 }

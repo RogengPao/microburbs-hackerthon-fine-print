@@ -1,0 +1,53 @@
+/* Fine Print design tokens — exported from Paper (v3 "paper" style). Tailwind v4: @import then use e.g. bg-v3-panel via @theme. */
+@theme {
+  /* v3 palette (use these) */
+  --color-v3-canvas: #F1EEE7;
+  --color-v3-panel: #FBFAF6;
+  --color-v3-card: #F3F0E8;
+  --color-v3-line: #E6E1D6;
+  --color-v3-text: #1E1D1B;
+  --color-v3-muted: #8C877D;
+  --color-v3-blue: #2F64D9;   /* good / this property / primary */
+  --color-v3-warn: #E3A008;   /* warning */
+  --color-v3-warn-ink: #9A6A00;
+
+  /* earlier palette (v1/v2, kept for reference) */
+  --color-bg: #FFFFFF;
+  --color-surface: #F6F6F4;
+  --color-line: #E7E7E4;
+  --color-ink: #111111;
+  --color-muted: #6B6B6B;
+  --color-highlight: #FFF04A;
+  --color-alert: #D9361E;
+  --color-data: #2347D6;
+  --color-data-soft: #E8EDFC;
+  --color-good: #17803D;
+  --color-avg: #B5B5B0;
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-voice: "Instrument Serif", ui-serif, serif; /* readouts / big numbers */
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 17px;
+  --text-xl: 26px;
+  --text-display: 44px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --tracking-tight: -0.03em;
+  --tracking-caps: 0.08em;
+  --leading-body: 21px;
+
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-10: 40px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+}

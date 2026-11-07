@@ -11,14 +11,17 @@ export default defineConfig({
   // Relative base: extension pages resolve assets under chrome-extension://<id>/
   base: './',
   plugins: [react(), tailwindcss()],
-  input: {
-    panel: resolve(import.meta.dirname, 'panel.html'),
-    options: resolve(import.meta.dirname, 'options.html'),
-    background: resolve(import.meta.dirname, 'src/background.js'),
-  },
   build: {
     outDir: 'dist',
     rolldownOptions: {
+      // entry points live under build options (a top-level `input` is ignored by Vite)
+      input: {
+        panel: resolve(import.meta.dirname, 'panel.html'),
+        options: resolve(import.meta.dirname, 'options.html'),
+        // shortlist dashboard (vanilla module page) → dist/src/ui/shortlist.html
+        shortlist: resolve(import.meta.dirname, 'src/ui/shortlist.html'),
+        background: resolve(import.meta.dirname, 'src/background.js'),
+      },
       output: {
         // Stable filename for the worker (the manifest points at it); page
         // chunks stay hashed under assets/ (web_accessible_resources: assets/*).

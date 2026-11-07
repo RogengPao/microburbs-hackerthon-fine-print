@@ -17,3 +17,10 @@ rents-input-flats-city-of-sydney.csv
 rents-past-leases-city-of-sydney.csv
 blocks-homes-and-people-2021-2026.csv
 data/
+design/jsx/
+
+# address-pipeline postcode table is source, not day-only data
+!address-pipeline/src/data/
+
+# Claude Code local state (agent worktrees etc.)
+.claude/

@@ -137,13 +137,23 @@ export function computeBrief(raw, { investor = {}, rate = 0.06, ratesInsuranceWe
     suburb_median_unit: raw.market?.median_rent?.unit ?? null,
   };
 
-  // --- price points
+  // --- price points (each with where it came from; Microburbs first, then fallbacks)
+  // recent same-bed sales nearby (12 months) — also the value fallback below
+  const yearAgo = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+  const sales = (raw.sales ?? []).filter((s) => (beds == null || s.bedrooms === beds) && s.date_sold >= yearAgo && s.price > 0);
   const latest = raw.history?.sale_history_latest;
-  const asking = raw.quoting?.asking_price ?? (latest?.type === 'For Sale' ? latest.price : null);
+  const pagePrice = raw.page_price ?? null; // the price the listing shows (portal page)
+  const [asking, askingSource] =
+    raw.quoting?.asking_price != null ? [raw.quoting.asking_price, 'agency quote']
+    : latest?.type === 'For Sale' && latest.price ? [latest.price, 'for-sale record']
+    : pagePrice?.mid ? [pagePrice.mid, pagePrice.source ?? 'listing page']
+    : [null, null];
   const likely = raw.quoting?.likely_sale_price ?? null;
   const value = raw.avm?.predicted_price != null
-    ? { estimate: raw.avm.predicted_price, low: raw.avm.predicted_price_low, high: raw.avm.predicted_price_high, confidence: raw.avm.confidence_score, as_of: raw.avm.prediction_date }
-    : null;
+    ? { estimate: raw.avm.predicted_price, low: raw.avm.predicted_price_low, high: raw.avm.predicted_price_high, confidence: raw.avm.confidence_score, as_of: raw.avm.prediction_date, basis: 'Microburbs valuation' }
+    : sales.length >= 3
+      ? { estimate: round(quantile(sales.map((s) => s.price), 0.5), 1000), low: round(quantile(sales.map((s) => s.price), 0.25), 1000), high: round(quantile(sales.map((s) => s.price), 0.75), 1000), confidence: null, as_of: null, basis: `median of ${sales.length} recent same-bed sales nearby` }
+      : null;
   const basisPrice = likely ?? asking ?? value?.estimate ?? null;
 
   const yieldAt = (p) => (p && rent.weekly ? round(((rent.weekly * 52) / p) * 100, 0.01) : null);
@@ -172,9 +182,6 @@ export function computeBrief(raw, { investor = {}, rate = 0.06, ratesInsuranceWe
   // --- competition for buyers: same-bed for sale within 1 km
   const forSale = (raw.nearby?.listings ?? []).filter((l) => beds == null || l.bedrooms === beds);
 
-  // --- recent same-bed sales nearby (12 months)
-  const yearAgo = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
-  const sales = (raw.sales ?? []).filter((s) => (beds == null || s.bedrooms === beds) && s.date_sold >= yearAgo && s.price > 0);
 
   // --- risks: on-property or very close only
   const risks = [];
@@ -200,6 +207,8 @@ export function computeBrief(raw, { investor = {}, rate = 0.06, ratesInsuranceWe
     },
     price: {
       asking,
+      asking_source: askingSource,
+      ...(pagePrice ? { listing_price_text: pagePrice.text } : {}),
       likely_sale: likely,
       agency: raw.quoting ? { name: raw.quoting.agency_name, cohort: raw.quoting.cohort, underquote_rate_pct: raw.quoting.underquote_rate_pct, median_over_quote_pct: raw.quoting.median_deviation_pct, sales: raw.quoting.total_sales } : null,
       value,
@@ -313,7 +322,7 @@ const projectDas = (d) => (d ?? []).map((x) => ({ area_name: x.area_name, descri
  * Fetch + compute a brief for an address. Throws a ToolError-shaped err on no match.
  * @param {Object} o  { address | parts, source, secretProvider, investor, fetch?, onProgress? }
  */
-export async function fetchListingBrief({ address = null, parts = null, source = 'proxy', secretProvider, investor, fetch: fetchImpl, onProgress = () => {} }) {
+export async function fetchListingBrief({ address = null, parts = null, pagePrice = null, source = 'proxy', secretProvider, investor, fetch: fetchImpl, onProgress = () => {} }) {
   const s = SOURCES[source];
   const http = new AllowlistHttpClient([s.host], { timeoutS: 20, fetch: fetchImpl, credentials: s.auth ? 'omit' : 'include' });
   const headers = s.auth ? { Authorization: `Bearer ${await secretProvider.get('microburbs')}` } : {};
@@ -365,7 +374,8 @@ export async function fetchListingBrief({ address = null, parts = null, source =
   onProgress({ stage: 'matched', address: match.display_name, gnaf_id: match.id });
 
   // the brief's maths depends on the investor (deposit, budget, min yield) — key the cache on it
-  const cacheKey = `brief:${match.id}:${investor?.budget ?? ''}:${investor?.deposit ?? ''}:${investor?.minYield ?? ''}`;
+  // the maths depends on the investor and on the listing's own price — key the cache on both
+  const cacheKey = `brief:v2:${match.id}:${investor?.budget ?? ''}:${investor?.deposit ?? ''}:${investor?.minYield ?? ''}:${pagePrice?.mid ?? ''}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
 
@@ -386,7 +396,7 @@ export async function fetchListingBrief({ address = null, parts = null, source =
     Promise.all(subs.map((sub) => bySuburb(sub, 'development/da-list', null, projectDas))),
   ]);
 
-  const brief = computeBrief({ match, avm, quoting, history, risks, basics, sales, nearby, market, strata, vacancy, rentals, das }, { investor });
+  const brief = computeBrief({ match, avm, quoting, history, risks, basics, sales, nearby, market, strata, vacancy, rentals, das, page_price: pagePrice }, { investor });
   brief.meta = { suburbs_searched: subs, fetched_ms: Date.now() - t0, fetched_at: new Date().toISOString(), source: 'Microburbs API', ...(failed.length ? { partial: failed } : {}) };
   // a partial brief (e.g. rate-limited) is shown but never cached — the next open retries
   if (!failed.length) await cacheSet(cacheKey, brief);

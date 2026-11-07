@@ -39,6 +39,7 @@ function readListingPage() {
           full: a.display?.fullAddress ?? null,
           lat: a.display?.geocode?.latitude ?? null, lng: a.display?.geocode?.longitude ?? null,
           property_type: l.propertyType?.id ?? null,
+          price_text: l.price?.display ?? null,
         };
       }
       if (location.hostname.endsWith('domain.com.au')) {
@@ -53,6 +54,7 @@ function readListingPage() {
           full: cp.address ?? null,
           lat: cp.map?.latitude ?? null, lng: cp.map?.longitude ?? null,
           property_type: cp.propertyType ?? null,
+          price_text: cp.listingSummary?.title ?? null,
         };
       }
     } catch {

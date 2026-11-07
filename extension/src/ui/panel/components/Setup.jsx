@@ -14,7 +14,7 @@ export default function Setup({ brief, onSave }) {
   const d = num(deposit);
   const valid = b > 0 && d > 0 && d < b;
   return (
-    <section className="setup flex-1">
+    <section className="setup min-h-0 flex-1">
       <h2 className="setup-title">Set your brief.</h2>
       <p className="text-muted">Every listing you open gets scored against it. Four inputs, once.</p>
       <div className="setup-row">

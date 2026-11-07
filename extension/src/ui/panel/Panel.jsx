@@ -98,7 +98,7 @@ export default function Panel() {
   );
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden">
       <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded } : null} onBrief={() => setShowSetup((v) => !v)} onNew={newThread} onClose={onClose} />
       {showSetup ? (
         <Setup brief={settings?.brief} onSave={onSaveBrief} />

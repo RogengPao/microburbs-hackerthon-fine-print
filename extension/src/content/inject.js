@@ -100,13 +100,26 @@
       .shortlist.done svg path { fill: #fff; }
       .shortlist.pop { animation: fp-pop .35s cubic-bezier(.2,.8,.2,1); }
       @keyframes fp-pop { 40% { transform: scale(1.02); } }
-      .pill { position: fixed; right: ${GUTTER}px; bottom: ${GUTTER}px; z-index: 2147483646; display: none; align-items: center; gap: 8px;
-              padding: 9px 14px 9px 10px; border-radius: 999px; border: 1px solid #e2ddd2; background: #fbfaf6; color: #1e1d1b;
-              font: 600 13px Geist, -apple-system, system-ui, sans-serif; cursor: pointer; box-shadow: 0 10px 30px rgba(60,48,28,.18);
-              transition: transform .15s ease, box-shadow .15s ease; animation: fp-in .3s cubic-bezier(.2,.8,.2,1); }
-      .pill:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(60,48,28,.22); }
+      /* collapsed state: a slim tab tucked into the right edge, mid-height — clear of the
+         portals' own bottom-right buttons. Widens on hover (or briefly when a read lands)
+         to show the headline numbers. */
+      .pill { position: fixed; right: 0; top: 50%; z-index: 2147483646; display: none; align-items: center; gap: 9px;
+              padding: 9px 10px 9px 9px; border-radius: 14px 0 0 14px; border: 1px solid #e2ddd2; border-right: none;
+              background: #fbfaf6; color: #1e1d1b; font: 500 12.5px/16px Geist, -apple-system, system-ui, sans-serif; cursor: pointer;
+              box-shadow: -8px 12px 32px rgba(60,48,28,.16), 0 1px 2px rgba(60,48,28,.08); transform: translateY(-50%);
+              transition: box-shadow .2s ease, background .2s ease; animation: fp-tab-in .4s cubic-bezier(.22,.8,.24,1) backwards; }
+      .pill:hover { background: #fff; box-shadow: -10px 14px 36px rgba(60,48,28,.2), 0 1px 2px rgba(60,48,28,.08); }
       .pill.show { display: flex; }
-      @keyframes fp-in { from { opacity: 0; transform: translateY(8px); } }
+      .pill .txt { display: flex; flex-direction: column; max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
+                   transition: max-width .32s cubic-bezier(.22,.8,.24,1), opacity .2s ease; }
+      .pill:hover .txt, .pill:focus-visible .txt, .pill.peek .txt { max-width: 240px; opacity: 1; }
+      .pill .name { font-weight: 600; }
+      .pill .sum { color: #8c877d; font-size: 11.5px; }
+      .pill .sum b { color: #1e1d1b; font-weight: 600; }
+      .pill .sum b.warn { color: #9a6a00; }
+      .pill kbd { font: 500 10px/14px 'Geist Mono', ui-monospace, monospace; padding: 1px 5px; border-radius: 4px; color: #8c877d;
+                  background: #f3f0e8; border: 1px solid #e6e1d6; }
+      @keyframes fp-tab-in { from { transform: translate(100%, -50%); } to { transform: translate(0, -50%); } }
       .mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #1e1d1b; }
       @media (prefers-reduced-motion: reduce) { .wrap, .shortlist, .pill { transition-duration: 1ms !important; animation: none !important; } }
     </style>
@@ -114,7 +127,7 @@
       <iframe title="Fine Print" allow="clipboard-write"></iframe>
       <button class="shortlist" title="Shortlist this property (S)"><svg width="14" height="14" viewBox="0 0 13 13" fill="none"><path d="M3 1.5h7v10l-3.5-2.5L3 11.5z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="label">Shortlist this property</span><span class="k">S</span></button>
     </div>
-    <button class="pill"><span class="mark"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 9.5V2.5h8M2 6h5" fill="none" stroke="#FBFAF6" stroke-width="1.6" stroke-linecap="round"/></svg></span> Fine Print</button>`;
+    <button class="pill" title="Open Fine Print (F)" aria-label="Open Fine Print (F)"><span class="mark"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 9.5V2.5h8M2 6h5" fill="none" stroke="#FBFAF6" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="txt"><span class="name">Fine Print</span><span class="sum">Press F to read this listing</span></span><kbd>F</kbd></button>`;
   document.documentElement.append(host);
 
   const wrap = shadow.querySelector('.wrap');
@@ -147,9 +160,36 @@
     unshiftFixed();
     wrap.classList.add('closed');
     pill.classList.add('show');
+    peek();
   }
 
   pill.addEventListener('click', open);
+  const pillSum = pill.querySelector('.sum');
+  let peekTimer = null;
+  // the panel posts the listing's headline numbers once its read lands — shown on the tab
+  window.addEventListener('message', (e) => {
+    if (e.origin !== EXT_ORIGIN || e.data?.type !== 'fineprint:summary') return;
+    const { price, priceLabel, yieldPct, over } = e.data;
+    pillSum.replaceChildren();
+    if (price) {
+      const b = document.createElement('b');
+      if (over) b.className = 'warn';
+      b.textContent = price;
+      pillSum.append(b, ` ${priceLabel ?? ''}`);
+    }
+    if (yieldPct) {
+      const y = document.createElement('b');
+      y.textContent = yieldPct;
+      pillSum.append(price ? ' · ' : '', y, ' yield');
+    }
+    if (!price && !yieldPct) pillSum.textContent = 'Press F to read this listing';
+  });
+  // a quick peek when the tab appears, so people learn what it is
+  const peek = () => {
+    pill.classList.add('peek');
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(() => pill.classList.remove('peek'), 2600);
+  };
   // the panel's ✕ asks to close; only trust our own extension origin
   window.addEventListener('message', (e) => {
     if (e.origin === EXT_ORIGIN && e.data?.type === 'fineprint:close') close();
@@ -184,6 +224,15 @@
     shortlistBtn.classList.add('pop');
   });
   // "S" shortlists (the key hint on the button) — only while open, never while typing on the page
+  // "F" — for Fine Print — opens / closes the panel from anywhere on the page (never while
+  // typing, never with modifier keys)
+  window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'f' || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    const t = e.target;
+    if (t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName ?? '')) return;
+    e.preventDefault();
+    isOpen ? close() : open();
+  });
   window.addEventListener('keydown', (e) => {
     if (!isOpen || e.key.toLowerCase() !== 's' || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
     const t = e.target;
@@ -194,7 +243,10 @@
   window.__finePrint = { open, close };
   // Auto-open on listings: the read is there before the investor asks.
   if (isListing()) setTimeout(open, 400);
-  else pill.classList.add('show');
+  else {
+    pill.classList.add('show');
+    peek();
+  }
 
   // REA (search + listing are one app) and Domain (Next.js) navigate client-side:
   // clicking a result changes the URL WITHOUT a page load, so this script never

@@ -39,6 +39,25 @@ The demo shows the third way: the super-user's research, in seconds, on the list
 5. **Both portals (1:10–1:20)** — switch to the organisers' Waterloo listing on Domain. *"Same on Domain — your Waterloo example."*
 6. **The shortlist (1:20–1:35)** — click the toolbar icon. *"Everything I shortlist lands here: the super-user's spreadsheet, built for me. Sort by yield, add my own formula, copy to Excel."*
 
+## Business case (slide 8 · say it if there's room, always in Q&A)
+
+**One line for the 45 seconds** (Yong, before the closer, ~8s):
+> Free to read, paid for power users, and at scale, real demand data for developers.
+
+**1. Investor subscription: free to read, paid for power users.** Pricing is still to be worked out; the numbers below are illustrative at **$15 a month ($180 a year)**.
+
+| | Who | Size | At $180/yr |
+|---|---|---|---|
+| **TAM** | Australians with a rental property | 2,335,540 (ATO 2023–24) | **≈ $420M** |
+| **SAM** | New investor loans a year | ≈ 210K (52,599 in the June qtr 2026 × 4, ABS) | **≈ $38M** |
+| **SOM** | 1% of landlords: about 2× today's leading listing extension (Homer, ~10K users) | ≈ 23K | **≈ $4.2M ARR** |
+
+Comparable tools charge $9.99/month (Property Mate) up to $77–$320/month (Microburbs investor plans), and investors already pay for several (r/AusFinance: five platforms). What's paid vs free is still open; candidates are unlimited reads, the analyst, and shortlist export.
+
+**2. At critical mass: demand insights for developers.** Every read and shortlist is a live signal of what investors want: suburb, bedrooms, price point, and what they walk away from. Aggregated and opt-in, it's demand data that developers and build-to-rent operators can use *before they build*. It also feeds back to Microburbs.
+
+**Honest caveats if asked:** pricing isn't validated, and the insights product needs scale plus a clear consent model first. The extension is free today.
+
 ## Before recording
 
 - [ ] Extension reloaded from `extension/dist`; investor brief set (budget, deposit, min yield, hold years)

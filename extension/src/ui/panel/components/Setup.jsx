@@ -6,7 +6,11 @@ const num = (s) => Number(String(s ?? '').replace(/[^\d.]/g, '')) || 0;
 const commas = (n) => (n ? Math.round(n).toLocaleString('en-AU') : '');
 
 /** Onboarding (design A "Set your brief"): the brief every listing is scored against. */
-export default function Setup({ brief, listingHeading, onSave }) {
+export default function Setup({ brief, listingHeading, missingKeys = [], onSave }) {
+  const llmMissing = missingKeys.some((k) => k !== 'microburbs');
+  const mbMissing = missingKeys.includes('microburbs');
+  const [orKey, setOrKey] = useState('');
+  const [mbKey, setMbKey] = useState('');
   const [budget, setBudget] = useState(commas(brief?.budget));
   const [deposit, setDeposit] = useState(commas(brief?.deposit));
   const [minYield, setMinYield] = useState(Number(brief?.minYield) > 0 ? brief.minYield : 4);
@@ -20,8 +24,9 @@ export default function Setup({ brief, listingHeading, onSave }) {
 
   const b = num(budget);
   const d = num(deposit);
-  const valid = b > 0 && d > 0 && d < b;
-  const save = () => valid && onSave({ budget: b, deposit: d, minYield: Number(minYield), holdYears: hold });
+  const keysOk = (!llmMissing || orKey.trim()) && (!mbMissing || mbKey.trim());
+  const valid = b > 0 && d > 0 && d < b && keysOk;
+  const save = () => valid && onSave({ brief: { budget: b, deposit: d, minYield: Number(minYield), holdYears: hold }, keys: { openrouter: orKey, microburbs: mbKey } });
 
   return (
     <section className="setup" onKeyDown={(e) => e.key === 'Enter' && e.target.tagName === 'INPUT' && save()}>
@@ -38,6 +43,31 @@ export default function Setup({ brief, listingHeading, onSave }) {
         <div className="setup-intro stagger">
           <h2 className="setup-title">Set your brief.</h2>
           <p>Every listing you open gets scored against it. Four inputs, once.</p>
+        </div>
+        <div className="keys stagger">
+          <div className="queued-head">
+            <span>Connect</span>
+            <span>stored in this browser only</span>
+          </div>
+          <label className="field">
+            <span className="field-head">
+              <span className="field-label">OpenRouter API key</span>
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">get a key</a>
+            </span>
+            <span className="input-wrap">
+              <input type="password" autoComplete="off" spellCheck="false" placeholder={llmMissing ? 'sk-or-…' : 'saved ✓ — paste to replace'} value={orKey} onChange={(e) => setOrKey(e.target.value)} />
+            </span>
+          </label>
+          <label className="field">
+            <span className="field-head">
+              <span className="field-label">Microburbs API key</span>
+              <span className="dim">from the hackathon</span>
+            </span>
+            <span className="input-wrap">
+              <input type="password" autoComplete="off" spellCheck="false" placeholder={mbMissing ? 'ht26_…' : 'saved ✓ — paste to replace'} value={mbKey} onChange={(e) => setMbKey(e.target.value)} />
+            </span>
+          </label>
+          <p className="keys-note">The analyst runs on DeepSeek V4.1 Flash via OpenRouter. Keys never leave this browser except to call those two services.</p>
         </div>
         <div className="setup-row stagger">
           <label className="field">
@@ -93,7 +123,7 @@ export default function Setup({ brief, listingHeading, onSave }) {
       </div>
       <div className="setup-foot-bar">
         <button className="cta" type="button" disabled={!valid} onClick={save}>
-          Save my brief <kbd>⏎</kbd>
+          {missingKeys.length ? 'Connect and save' : 'Save my brief'} <kbd>⏎</kbd>
         </button>
         <p className="setup-foot">Stored on this device · data by Microburbs · not financial advice</p>
       </div>

@@ -14,17 +14,16 @@ import {
 } from '../runtime/index.js';
 import { addressFromPage, formatAddress } from './address.js';
 import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
-import { testBrief, testListingBriefTool } from './test-data.js';
 import { parsePriceText } from './price-text.js';
 import { LessonBook, uiBlockTool } from './ui-blocks.js';
 import { microburbsTools } from './microburbs-tools.js';
 import { openAppDb, PropertyMemory, propertyMemoryTools } from './property-memory.js';
 import { pageContextText } from './page-context.js';
 
+export const DEFAULT_MODEL = 'deepseek/deepseek-v4.1-flash'; // via OpenRouter
 export const DEFAULT_SETTINGS = {
-  provider: 'deepseek',
-  model: 'deepseek-chat',
-  mbSource: 'test', // 'test' (bundled data) until the team key lands; then 'api'
+  provider: 'openrouter',
+  model: DEFAULT_MODEL,
   brief: { budget: 800000, deposit: 160000, minYield: 4.0, holdYears: 10 },
 };
 
@@ -56,9 +55,24 @@ export function briefIsSet(brief) {
  * @returns {Promise<{ needed: boolean, stored: Object|null }>} stored = the raw brief (or null)
  */
 export async function onboardingState() {
-  const { settings } = await chrome.storage.local.get('settings');
+  const { settings, secrets = {} } = await chrome.storage.local.get(['settings', 'secrets']);
   const stored = settings?.brief ?? null;
-  return { needed: !settings?.onboarded || !briefIsSet(stored), stored };
+  const provider = settings?.provider ?? DEFAULT_SETTINGS.provider;
+  const missingKeys = [...(secrets[provider] ? [] : [provider]), ...(secrets.microburbs ? [] : ['microburbs'])];
+  return { needed: !settings?.onboarded || !briefIsSet(stored) || missingKeys.length > 0, stored, missingKeys };
+}
+
+/** Save API keys from onboarding (kept in this browser only). An OpenRouter key switches the agent to OpenRouter + the default model. */
+export async function saveKeys({ openrouter, microburbs } = {}) {
+  const { settings = {}, secrets = {} } = await chrome.storage.local.get(['settings', 'secrets']);
+  const next = { ...secrets };
+  if (openrouter?.trim()) next.openrouter = openrouter.trim();
+  if (microburbs?.trim()) next.microburbs = microburbs.trim();
+  const toOpenRouter = Boolean(openrouter?.trim()) && settings.provider !== 'openrouter';
+  await chrome.storage.local.set({
+    secrets: next,
+    settings: { ...settings, ...(toOpenRouter || !settings.provider ? { provider: 'openrouter', model: DEFAULT_MODEL } : {}) },
+  });
 }
 
 /** Save the investor brief from onboarding (marks onboarding done). */
@@ -69,7 +83,8 @@ export async function saveBrief(brief) {
 
 export async function loadSettings() {
   const { settings } = await chrome.storage.local.get('settings');
-  return { ...DEFAULT_SETTINGS, ...(settings ?? {}), brief: cleanBrief(settings?.brief) };
+  const { mbSource, ...rest } = settings ?? {}; // old installs: the test/proxy source is gone, always the live API
+  return { ...DEFAULT_SETTINGS, ...rest, model: rest.model || DEFAULT_SETTINGS.model, brief: cleanBrief(settings?.brief) };
 }
 
 function systemPrompt(brief) {
@@ -100,7 +115,7 @@ Cards (show, don't list):
 async function llmKey(provider) {
   const { secrets } = await chrome.storage.local.get('secrets');
   const key = secrets?.[provider];
-  if (!key) throw new Error(`No ${provider} API key — set it in the options page.`);
+  if (!key) throw new Error(`No ${provider === 'openrouter' ? 'OpenRouter' : provider} API key — add it in Settings.`);
   return key;
 }
 
@@ -130,10 +145,10 @@ export async function loadBrief({ listing, onProgress = () => {} }) {
     const shown = parsePriceText(listing.page?.listing?.price_text);
     const bracket = listing.page?.hidden?.priceBracket;
     const pagePrice = shown ? { ...shown, source: 'listing price' } : bracket ? { low: bracket.min, high: bracket.max, mid: Math.round((bracket.min + bracket.max) / 2), text: `hidden bracket ${bracket.min}–${bracket.max}`, source: "portal's hidden price bracket" } : null;
-    const brief = settings.mbSource === 'test' ? testBrief(address.parts, settings.brief) : await fetchListingBrief({
+    const brief = await fetchListingBrief({
       parts: address.parts,
       pagePrice,
-      source: settings.mbSource,
+      source: 'api',
       secretProvider: new ChromeStorageSecretProvider(),
       investor: settings.brief,
       onProgress,
@@ -222,14 +237,12 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   });
   const cards = uiBlockTool({ getBrief: () => ctx.brief, investor: settings.brief, memory, lessons });
   const tools = new ToolRegistry(
-    settings.mbSource === 'test'
-      ? [remembering(testListingBriefTool({ investor: settings.brief, memory, listing })), ...propertyMemoryTools(memory), cards] // no network
-      : [
-          remembering(listingBriefTool({ source: settings.mbSource, secretProvider, investor: settings.brief, memory, listing })),
-          ...propertyMemoryTools(memory),
-          cards,
-          ...microburbsTools({ source: settings.mbSource, secretProvider }),
-        ],
+    [
+      remembering(listingBriefTool({ source: 'api', secretProvider, investor: settings.brief, memory, listing })),
+      ...propertyMemoryTools(memory),
+      cards,
+      ...microburbsTools({ source: 'api', secretProvider }),
+    ],
   );
   const store = new IndexedDbTranscript(threadId, { db: openAppDb() });
   // Ephemeral context: the listing page, re-sent every step, never persisted — so the

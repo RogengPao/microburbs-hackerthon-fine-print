@@ -6,6 +6,7 @@
 
 import { settle } from './motion.js';
 import { tip } from './tooltip.js';
+import { agencySentence, agencyShort } from '../agent/agency-text.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const h = (tag, cls, text) => {
@@ -133,7 +134,7 @@ function signals(b, investor) {
   }
   const { asking, likely_sale: likely, value } = b.price ?? {};
   if (asking && likely && likely !== asking) {
-    out.push({ tag: 'QUOTE', tone: likely > asking ? 'warn' : 'good', text: likely > asking ? 'Agency sells over quote' : 'Agency sells under quote', value: `${likely > asking ? '+' : '−'}${K(Math.abs(likely - asking))}`, ask: 'What should I offer?', tip: b.price?.agency ? `${b.price.agency.name} is a "${String(b.price.agency.cohort).toLowerCase()}": ${b.price.agency.underquote_rate_pct}% of its ${b.price.agency.sales} recent sales went over the quoted price, by a median ${b.price.agency.median_over_quote_pct}%. Asking ${K(asking)} → likely ${K(likely)}.` : `Asking ${K(asking)} vs likely ${K(likely)}.` });
+    out.push({ tag: 'QUOTE', tone: likely > asking ? 'warn' : 'good', text: likely > asking ? 'Agency sells over quote' : 'Agency sells under quote', value: `${likely > asking ? '+' : '−'}${K(Math.abs(likely - asking))}`, ask: 'What should I offer?', tip: b.price?.agency ? `${b.price.agency.name} (${String(b.price.agency.cohort).toLowerCase()}). ${agencySentence(b.price.agency)} Asking ${K(asking)} → likely ${K(likely)}.` : `Asking ${K(asking)} vs likely ${K(likely)}.` });
   }
   if (asking && value?.estimate) {
     out.push({ tag: 'VALUE', tone: asking > value.estimate ? 'warn' : 'good', text: asking > value.estimate ? 'Asking above estimate' : 'Asking below estimate', value: `${asking > value.estimate ? '+' : '−'}${K(Math.abs(asking - value.estimate))}`, ask: "What's it really worth?", tip: `Microburbs' automated valuation is ${K(value.estimate)} (range ${K(value.low)}–${K(value.high)}, confidence ${value.confidence}/100), from recent nearby sales. Asking is ${K(asking)}. A second opinion, not a bank valuation.` });
@@ -204,7 +205,7 @@ export function renderOverview(b, investor = {}, { onAsk = () => {} } = {}) {
     if (budget != null) legend.append(tip(row('dash', 'Your budget', null, K(budget)), `From your brief (${K(budget)} with a ${K(investor.deposit)} deposit). Change it from the brief chip in the header.`, 'Your budget'));
     if (price.likely_sale) {
       const a = price.agency;
-      legend.append(tip(row('warn', 'Likely sale', a ? `agency +${a.median_over_quote_pct}% over quote · ${Math.round(a.underquote_rate_pct)}%` : null, K(price.likely_sale), 'ov-warn-ink'), a ? `What this listing will most likely sell for, given the agency's record: ${a.underquote_rate_pct}% of ${a.name}'s ${a.sales} recent sales went over quote, by a median ${a.median_over_quote_pct}%.` : 'Microburbs’ likely sale price for this listing.', 'Likely sale'));
+      legend.append(tip(row('warn', 'Likely sale', agencyShort(a), K(price.likely_sale), 'ov-warn-ink'), a ? `What this listing will most likely sell for, given the agency's record. ${agencySentence(a)}` : 'Microburbs’ likely sale price for this listing.', 'Likely sale'));
     }
     root.append(legend);
   }

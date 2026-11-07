@@ -13,6 +13,7 @@
 
 import { tool, ToolError } from '../runtime/index.js';
 import { validate } from '../runtime/validate.js';
+import { agencySentence } from './agency-text.js';
 
 // ---------------------------------------------------------------- schema helpers
 const str = (maxLength = 120) => ({ type: 'string', minLength: 1, maxLength });
@@ -550,7 +551,7 @@ const BUILDERS = {
       ...(b.price?.value?.estimate && { estimate: b.price.value.estimate }),
       ...(b.price?.asking && { asking: b.price.asking }),
       ...(b.price?.likely_sale && { likely: b.price.likely_sale }),
-      caption: a ? `Agency: ${a.name}, "${String(a.cohort).toLowerCase()}" — ${a.underquote_rate_pct}% of ${a.sales} sales went over quote, by a median ${a.median_over_quote_pct}%.` : 'Aim between the estimate and the asking price; walk away at your budget or the likely sale.',
+      caption: a ? `Agency: ${a.name} (${String(a.cohort).toLowerCase()}). ${agencySentence(a)}` : 'Aim between the estimate and the asking price; walk away at your budget or the likely sale.',
       sources: ['valuation/agent-quoting', 'valuation/avm'],
     };
   },

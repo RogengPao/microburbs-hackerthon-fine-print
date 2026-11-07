@@ -20,3 +20,6 @@ design/jsx/
 
 # address-pipeline postcode table is source, not day-only data
 !address-pipeline/src/data/
+
+# Claude Code local state (agent worktrees etc.)
+.claude/

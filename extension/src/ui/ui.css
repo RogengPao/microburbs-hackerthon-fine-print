@@ -308,7 +308,7 @@ body.embedded { background: var(--paper); }
 .ov-loading-step { margin-top: 6px; font-family: var(--mono); font-size: 10px; color: var(--muted-2); min-height: 12px; }
 
 /* ================================================================ UI blocks (render_ui_block cards, design D) */
-.ub-card { align-self: stretch; border: 1px solid var(--line-2); border-radius: 18px; background: var(--paper); overflow: hidden; box-shadow: var(--shadow-card); animation: fp-card .42s var(--ease) backwards; }
+.ub-card { align-self: stretch; border: 1px solid var(--line-2); border-radius: 18px; background: var(--white); /* lighter than the panel so cards pop */ overflow: hidden; box-shadow: var(--shadow-card); animation: fp-card .42s var(--ease) backwards; }
 .ub-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 18px; background: var(--head); border-bottom: 1px dashed var(--line-2); }
 .ub-title { font-family: var(--mono); font-size: 11px; line-height: 14px; color: var(--blue); white-space: nowrap; }
 .ub-question { font-size: 12px; line-height: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -149,7 +149,8 @@ const BODIES = {
     const max = Math.max(...b.years.map((y) => y.dwellings)) || 1;
     const box = h('div', 'ub-box');
     for (const y of b.years) {
-      box.append(hbar(`${y.year} · yr ${y.hold_year}`, y.dwellings / max, `${y.dwellings}`, y.build_to_rent > 0 ? 'warn' : 'muted', { note: y.build_to_rent ? `${y.build_to_rent} build-to-rent` : null, valueTone: y.build_to_rent > 0 ? 'warn' : null }));
+      // no per-year subtitles (cluttered) — yellow already says build-to-rent; the tooltip has the split
+      box.append(hbar(`${y.year} · yr ${y.hold_year}`, y.dwellings / max, `${y.dwellings}`, y.build_to_rent > 0 ? 'warn' : 'muted', { valueTone: y.build_to_rent > 0 ? 'warn' : null, tip: `${y.dwellings} new homes most likely land in ${y.year} (year ${y.hold_year} of your hold)${y.build_to_rent ? `, ${y.build_to_rent} of them build-to-rent` : ''}.` }));
     }
     const out = [top(b, 'When new homes land · your hold'), box];
     if (b.already_built) out.push(h('div', 'ub-unit', `+ ${b.already_built} more likely already built — in today's market`));

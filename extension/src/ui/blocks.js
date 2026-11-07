@@ -187,7 +187,7 @@ export function renderBlock(template, body) {
     main.append(h('div', 'ub-caption', `(could not draw this card: ${e.message})`));
   }
   if (body.caption) main.append(h('div', 'ub-caption', body.caption));
-  if (body.sources?.length) main.append(h('div', 'ub-sources', body.sources.join(' · ')));
+  // body.sources (API routes) stay internal — the UI is for investors, not developers
   card.append(main);
   return card;
 }

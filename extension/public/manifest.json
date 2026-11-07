@@ -7,7 +7,6 @@
   "permissions": ["storage", "scripting", "activeTab"],
   "host_permissions": [
     "https://api-ht.microburbs.com.au/*",
-    "https://microburbs-api-demos.vercel.app/*",
     "https://api.deepseek.com/*",
     "https://openrouter.ai/*",
     "https://www.realestate.com.au/*",

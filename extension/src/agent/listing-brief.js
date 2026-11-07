@@ -322,7 +322,7 @@ const projectDas = (d) => (d ?? []).map((x) => ({ area_name: x.area_name, descri
  * Fetch + compute a brief for an address. Throws a ToolError-shaped err on no match.
  * @param {Object} o  { address | parts, source, secretProvider, investor, fetch?, onProgress? }
  */
-export async function fetchListingBrief({ address = null, parts = null, pagePrice = null, source = 'proxy', secretProvider, investor, fetch: fetchImpl, onProgress = () => {} }) {
+export async function fetchListingBrief({ address = null, parts = null, pagePrice = null, source = 'api', secretProvider, investor, fetch: fetchImpl, onProgress = () => {} }) {
   const s = SOURCES[source];
   const http = new AllowlistHttpClient([s.host], { timeoutS: 20, fetch: fetchImpl, credentials: s.auth ? 'omit' : 'include' });
   const headers = s.auth ? { Authorization: `Bearer ${await secretProvider.get('microburbs')}` } : {};

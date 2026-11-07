@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FIRST_READ_TEXT, history, loadSettings, onboardingState, saveBrief, suggestQuestions } from '../../agent/agent.js';
+import { FIRST_READ_TEXT, history, loadSettings, onboardingState, saveBrief, saveKeys, suggestQuestions } from '../../agent/agent.js';
 import { renderOverview, renderOverviewLoading } from '../overview.js';
 import { useListing } from '../hooks/useListing.js';
 import { useBrief } from '../hooks/useBrief.js';
@@ -23,6 +23,7 @@ export default function Panel() {
   const [settings, setSettings] = useState(null);
   const [showSetup, setShowSetup] = useState(false);
   const [storedBrief, setStoredBrief] = useState(null); // raw brief values (blank = not set)
+  const [missingKeys, setMissingKeys] = useState([]); // API keys onboarding still needs
   const [briefVersion, setBriefVersion] = useState(0);
   const brief = useBrief(listing, briefVersion);
   const thread = useAgentThread();
@@ -36,6 +37,7 @@ export default function Panel() {
     Promise.all([loadSettings(), onboardingState()]).then(([s, o]) => {
       setSettings(s);
       setStoredBrief(o.stored);
+      setMissingKeys(o.missingKeys);
       setShowSetup(o.needed);
     });
   }, []);
@@ -102,8 +104,10 @@ export default function Panel() {
     setQuestions(DEFAULT_QUESTIONS);
   }, [newThread]);
 
-  const onSaveBrief = async (b) => {
+  const onSaveBrief = async ({ brief: b, keys }) => {
+    await saveKeys(keys);
     await saveBrief(b);
+    setMissingKeys((await onboardingState()).missingKeys);
     const s = await loadSettings();
     setSettings(s);
     setStoredBrief(s.brief);
@@ -146,7 +150,7 @@ export default function Panel() {
     <div className="panel">
       <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded && !showSetup } : null} inSetup={showSetup} onBrief={() => setShowSetup((v) => !v)} onNew={startNewThread} onClose={onClose} />
       {showSetup ? (
-        <Setup brief={storedBrief} listingHeading={listing?.page?.heading ?? null} onSave={onSaveBrief} />
+        <Setup brief={storedBrief} listingHeading={listing?.page?.heading ?? null} missingKeys={missingKeys} onSave={onSaveBrief} />
       ) : (
         <>
           <Thread

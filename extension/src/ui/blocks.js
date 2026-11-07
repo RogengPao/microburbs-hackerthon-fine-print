@@ -173,8 +173,7 @@ const BODIES = {
 export function renderBlock(template, body) {
   const t = TEMPLATES[template];
   const card = h('div', `ub-card ub-${template}`);
-  const head = h('div', 'ub-head');
-  head.append(h('span', 'ub-title', t?.title ?? template), h('span', 'ub-question', `"${t?.question ?? ''}"`));
+  // no header row: the card speaks for itself (tool names aren't for investors)
   const main = h('div', 'ub-main');
   const top = h('div', 'ub-top');
   top.append(h('div', 'ub-headline', body.headline));
@@ -189,6 +188,6 @@ export function renderBlock(template, body) {
   }
   if (body.caption) main.append(h('div', 'ub-caption', body.caption));
   if (body.sources?.length) main.append(h('div', 'ub-sources', body.sources.join(' · ')));
-  card.append(head, main);
+  card.append(main);
   return card;
 }

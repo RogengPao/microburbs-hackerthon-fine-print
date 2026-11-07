@@ -88,7 +88,7 @@ main:hover::-webkit-scrollbar-thumb { background: #ddd8cc; }
 .msg.agent.pre { color: var(--muted); font-size: 13px; }
 .msg.agent.pre.md { font-style: normal; }
 .msg.live { animation: none; }
-.msg.live::after { content: ''; display: inline-block; width: 7px; height: 14px; margin-left: 3px; vertical-align: -2px; border-radius: 1.5px; background: var(--blue); animation: fp-caret 1s ease-in-out infinite; }
+.msg.live::after { content: ''; display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em; border-radius: 1px; background: var(--ink-2); animation: fp-caret 1.05s steps(1, end) infinite; }
 .msg.live.md > p:last-child { display: inline; }
 .msg.error { align-self: stretch; max-width: 100%; padding: 10px 12px; border-radius: 12px; background: var(--warn-row); color: var(--warn-ink); border: 1px solid #f0d68f; font-size: 13px; }
 
@@ -451,7 +451,7 @@ body.embedded { background: var(--paper); }
 @keyframes fp-seg { from { background: var(--seg); } }
 @keyframes fp-grow { from { transform: scaleX(0); } }
 @keyframes fp-draw { to { stroke-dashoffset: 0; } }
-@keyframes fp-caret { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+@keyframes fp-caret { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes fp-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 @keyframes fp-shimmer { from { background-position: 100% 0; } to { background-position: -50% 0; } }
 @keyframes fp-sweep { 0%, 100% { stroke: #e9e5db; } 30% { stroke: #cfc9bc; } }

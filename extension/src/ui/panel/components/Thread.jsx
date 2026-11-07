@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FIRST_READ_TEXT } from '../../../agent/agent.js';
 import { normaliseBlockArgs } from '../../../agent/ui-blocks.js';
 import { renderBlock } from '../../blocks.js';
@@ -69,8 +69,39 @@ function cardOf(item) {
   return { template, body };
 }
 
+/**
+ * Smooth streaming: the model sends text in bursts; show it flowing at an even pace
+ * instead. Each frame reveals a slice of what's left (about 1/10th), so it never lags far
+ * behind and finishes the moment the stream does.
+ */
+function useSmoothText(target) {
+  const [shown, setShown] = useState('');
+  const shownRef = useRef('');
+  useEffect(() => {
+    if (target == null) {
+      shownRef.current = '';
+      setShown('');
+      return undefined;
+    }
+    if (!target.startsWith(shownRef.current)) shownRef.current = ''; // a new step's text
+    let raf = 0;
+    const tick = () => {
+      const cur = shownRef.current;
+      if (cur.length >= target.length) return;
+      const step = Math.max(1, Math.ceil((target.length - cur.length) / 10));
+      shownRef.current = target.slice(0, cur.length + step);
+      setShown(shownRef.current);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  return target == null ? null : shown;
+}
+
 export default function Thread({ overview, messages, liveText, statusLine, eventLines, turnMeta, turnError }) {
   const items = useMemo(() => deriveItems(messages), [messages]);
+  const smoothText = useSmoothText(liveText);
   const mainRef = useRef(null);
   const prevUsers = useRef(0);
   useEffect(() => {
@@ -113,8 +144,8 @@ export default function Thread({ overview, messages, liveText, statusLine, event
           {line.text}
         </div>
       ))}
-      {liveText !== null && (
-        <div className="msg agent live md" dangerouslySetInnerHTML={{ __html: renderMarkdown(liveText) }} />
+      {smoothText !== null && (
+        <div className="msg agent live md" dangerouslySetInnerHTML={{ __html: renderMarkdown(smoothText) }} />
       )}
       {/* turn stats (steps · tokens · cost) are debug data — not shown; Settings → Export has everything */}
       {turnError && <Message kind="error" text={turnError} />}

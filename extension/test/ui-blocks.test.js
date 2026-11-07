@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cardFromBrief, LessonBook, offerLadder, resolveTemplate, TEMPLATES, uiBlockTool } from '../src/agent/ui-blocks.js';
-import { testBrief, TEST_INVESTOR } from '../src/agent/test-data.js';
+import { testBrief, TEST_INVESTOR } from './fixtures/test-data.js';
 import { ToolRegistry } from '../src/runtime/index.js';
 import { validate } from '../src/runtime/validate.js';
 

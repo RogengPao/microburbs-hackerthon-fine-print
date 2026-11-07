@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { loadSettings } from '../../agent/agent.js';
+import { DEFAULT_MODEL, loadSettings } from '../../agent/agent.js';
 
 const KEY_FIELDS = ['deepseek', 'openrouter', 'microburbs'];
 const BRIEF_FIELDS = ['budget', 'deposit', 'minYield', 'holdYears'];
 const LABEL_CLASS = 'my-2 flex flex-col gap-1 text-muted';
 
-const initialForm = { provider: '', model: '', mbSource: '', brief: {}, keys: {} };
+const initialForm = { provider: '', model: '', brief: {}, keys: {} };
 
 /** Every store in the extension's IndexedDB, read generically (whatever version it's at). */
 function dumpIndexedDb(name = 'fine-print') {
@@ -37,10 +37,13 @@ export default function Options() {
       const s = await loadSettings();
       // show the brief exactly as stored — loadSettings() fills blanks with defaults for the maths
       const { secrets = {}, settings: raw = {} } = await chrome.storage.local.get(['secrets', 'settings']);
+      if ('mbSource' in raw) {
+        const { mbSource, ...clean } = raw; // the test/proxy source is gone — drop the stale setting
+        await chrome.storage.local.set({ settings: clean });
+      }
       setForm({
         provider: s.provider,
         model: s.model,
-        mbSource: s.mbSource,
         brief: Object.fromEntries(BRIEF_FIELDS.map((k) => [k, Number(raw.brief?.[k]) > 0 ? raw.brief[k] : ''])),
         keys: Object.fromEntries(KEY_FIELDS.map((k) => [k, secrets[k] ?? ''])),
       });
@@ -55,7 +58,7 @@ export default function Options() {
   const onProvider = (provider) => {
     setForm((f) => {
       let model = f.model;
-      if (provider === 'openrouter' && model === 'deepseek-chat') model = 'deepseek/deepseek-chat';
+      if (provider === 'openrouter' && !model.includes('/')) model = DEFAULT_MODEL;
       if (provider === 'deepseek' && model.includes('/')) model = 'deepseek-chat';
       return { ...f, provider, model };
     });
@@ -93,7 +96,6 @@ export default function Options() {
       ...prev, // keeps `onboarded` and anything else the panel stores
       provider: form.provider,
       model: form.model.trim(),
-      mbSource: form.mbSource,
       // store exactly what was entered: a cleared field stays empty (null), never silently
       // reset to a default — the panel then shows onboarding until the brief is complete
       brief: Object.fromEntries(BRIEF_FIELDS.map((k) => [k, String(form.brief[k] ?? '').trim() !== '' && Number(form.brief[k]) > 0 ? Number(form.brief[k]) : null])),
@@ -113,8 +115,8 @@ export default function Options() {
         <label className={LABEL_CLASS}>
           Provider
           <select value={form.provider} onChange={(e) => onProvider(e.target.value)}>
+            <option value="openrouter">OpenRouter (recommended)</option>
             <option value="deepseek">DeepSeek</option>
-            <option value="openrouter">OpenRouter</option>
           </select>
         </label>
         <label className={LABEL_CLASS}>
@@ -122,7 +124,7 @@ export default function Options() {
           <input
             value={form.model}
             onChange={(e) => set('model', e.target.value)}
-            placeholder="deepseek-chat  ·  or e.g. deepseek/deepseek-chat on OpenRouter"
+            placeholder={`${DEFAULT_MODEL} (default, OpenRouter)  ·  deepseek-chat on DeepSeek`}
           />
         </label>
         <label className={LABEL_CLASS}>
@@ -138,15 +140,7 @@ export default function Options() {
       <fieldset className="mb-4 rounded-xl border border-line bg-card px-3.5 py-3">
         <legend className="px-1 font-semibold">Microburbs</legend>
         <label className={LABEL_CLASS}>
-          Source
-          <select value={form.mbSource} onChange={(e) => set('mbSource', e.target.value)}>
-            <option value="test">Test data (bundled, no network)</option>
-            <option value="proxy">Demo proxy (uses your Chrome session — visit microburbs-api-demos.vercel.app first)</option>
-            <option value="api">Hackathon API (team key)</option>
-          </select>
-        </label>
-        <label className={LABEL_CLASS}>
-          Team key
+          Microburbs API key
           <input type="password" autoComplete="off" value={form.keys.microburbs ?? ''} onChange={(e) => setKey('microburbs', e.target.value)} />
         </label>
       </fieldset>

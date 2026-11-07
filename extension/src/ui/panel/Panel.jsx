@@ -1,3 +1,4 @@
+import Icon from '../icons.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FIRST_READ_TEXT, history, loadSettings, onboardingState, saveBrief, saveKeys, suggestQuestions } from '../../agent/agent.js';
 import { renderOverview, renderOverviewLoading } from '../overview.js';
@@ -134,6 +135,15 @@ export default function Panel() {
     <DomNode className="overview" build={() => renderOverviewLoading()} deps={[listing?.url, pending]} />
   ) : !listing ? null : brief.status === 'loading' || brief.status === 'idle' ? (
     <DomNode className="overview" build={() => renderOverviewLoading()} deps={[listing]} />
+  ) : brief.status === 'error' && brief.res.reason === 'out_of_range' ? (
+    <div className="ov-out">
+      <span className="ov-out-icon"><Icon name="building-2" size={20} /></span>
+      <div>
+        <div className="ov-out-title">Outside our data area</div>
+        <p>Fine Print covers the City of Sydney for now, and {brief.res.suburb} isn’t in it yet.</p>
+        <p className="dim">Try a listing in Surry Hills, Zetland, Redfern or Waterloo.</p>
+      </div>
+    </div>
   ) : brief.status === 'error' ? (
     <div className="ov-error">
       {brief.res.reason === 'no_match' ? `No exact match — ${brief.res.message}${brief.res.hint ? ` (${brief.res.hint})` : ''}` : brief.res.reason === 'no_address' ? brief.res.message : `Couldn't load Microburbs data — ${brief.res.message}`}

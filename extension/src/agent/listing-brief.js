@@ -54,6 +54,15 @@ export const SUBURBS = {
 const bySal = new Map(Object.values(SUBURBS).map(([sal, lat, lng]) => [sal, { sal, lat, lng }]));
 const plain = (sal) => String(sal ?? '').replace(/\s*\(.*\)$/, '');
 
+// Microburbs' hackathon data covers the City of Sydney suburbs above, nothing else.
+const COVERED = new Set(Object.keys(SUBURBS).map((s) => s.toLowerCase()));
+/** Is this suburb inside our data area? Unknown (blank) → true, so we never block on a parse gap. */
+export function inCoverage(suburb) {
+  const s = plain(suburb).trim().toLowerCase();
+  return s ? COVERED.has(s) : true;
+}
+export const COVERED_SUBURBS = Object.keys(SUBURBS);
+
 export function haversineKm(a, b) {
   const R = 6371;
   const rad = (d) => (d * Math.PI) / 180;

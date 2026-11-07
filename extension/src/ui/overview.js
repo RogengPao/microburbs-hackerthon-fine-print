@@ -5,6 +5,9 @@
 // DOM + textContent only; model text never reaches here.
 
 import { settle } from './motion.js';
+import { iconSvg } from './icons.jsx';
+
+const SIGNAL_ICONS = { SUPPLY: 'building-2', TIMING: 'calendar-clock', QUOTE: 'tag', VALUE: 'chart-combined', RENT: 'key-round', RISK: 'alert' };
 import { tip } from './tooltip.js';
 import { agencySentence, agencyShort } from '../agent/agency-text.js';
 
@@ -276,7 +279,12 @@ export function renderOverview(b, investor = {}, { onAsk = () => {} } = {}) {
       r.title = s.ask;
       const chev = h('span', 'ov-chev');
       chev.append(CHEVRON());
-      r.append(h('span', 'ov-bar'), h('span', 'ov-tag', s.tag), h('span', 'ov-text', s.text), h('span', 'ov-value', s.value), chev);
+      // icon tile + tag over text (layout and icons from Carlos's redesign)
+      const tile = h('span', 'ov-symbol');
+      tile.innerHTML = iconSvg(SIGNAL_ICONS[s.tag] ?? 'sparkles', 17); // static markup only
+      const main = h('span', 'ov-sig-main');
+      main.append(h('span', 'ov-tag', s.tag), h('span', 'ov-text', s.text));
+      r.append(tile, main, h('span', 'ov-value', s.value), chev);
       r.addEventListener?.('click', () => onAsk(s.ask));
       if (s.tip) {
         r.removeAttribute('title'); // the tooltip replaces the native one

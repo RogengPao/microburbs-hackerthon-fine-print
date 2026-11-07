@@ -13,7 +13,7 @@ import {
   ToolRegistry,
 } from '../runtime/index.js';
 import { addressFromPage, formatAddress } from './address.js';
-import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
+import { fetchListingBrief, inCoverage, listingBriefTool } from './listing-brief.js';
 import { loadPublicHousing } from './public-housing.js';
 import { loadRentModel } from './rent-model.js';
 import { parseWeeklyRent } from './rent-text.js';
@@ -146,6 +146,10 @@ export async function loadBrief({ listing, onProgress = () => {} }) {
   const address = addressFromPage(listing?.page);
   if (!address) return { ok: false, reason: 'no_address', message: 'Could not read an address from this page.' };
   onProgress({ stage: 'address', ...address, text: formatAddress(address.parts) });
+  if (!inCoverage(address.parts?.suburb)) {
+    const suburb = String(address.parts.suburb).toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    return { ok: false, reason: 'out_of_range', suburb, message: `${suburb} is outside our data area (City of Sydney only for now).`, address };
+  }
   const settings = await loadSettings();
   try {
     // the listing's own price: shown text first, REA's hidden bracket for "Contact Agent"

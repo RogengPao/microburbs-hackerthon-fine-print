@@ -143,7 +143,7 @@ function signals(b, investor) {
     out.push({ tag: 'RENT', tone: 'good', text: `${plural(b.rent.comparables, 'similar rental')} within 1 km`, value: `$${b.rent.weekly}/wk`, ask: 'Will it earn enough?', tip: `Median of ${b.rent.comparables} ${b.property?.beds ?? ''}-bed units advertised for rent within 1 km: $${b.rent.weekly}/wk (middle half $${b.rent.low}–${b.rent.high}).${b.rent.this_property_last ? ` This property last advertised at $${b.rent.this_property_last.weekly}/wk (${b.rent.this_property_last.date}).` : ''}` });
   }
   for (const r of (b.risks ?? []).slice(0, 1)) {
-    out.push({ tag: 'RISK', tone: 'warn', text: ({ hv_power_line: 'High-voltage power line', flood: 'Flood zone', heritage: 'Heritage overlay', bushfire: 'Bushfire zone' })[r.name] ?? titleCase(r.name.replace(/_/g, ' ')), value: String(r.detail ?? '').replace(/^Not on property;\s*/i, '').replace(/^nearest\s+/i, '').replace(/\s*away$/, ''), ask: 'Any hazards I should check?', tip: `${r.detail}. ${r.on_property ? 'On the title itself.' : 'Not on the title, but close — check the strata report and a site visit.'}` });
+    out.push({ tag: 'RISK', tone: 'warn', text: ({ hv_power_line: 'High-voltage power line', flood: 'Flood zone', heritage: 'Heritage overlay', bushfire: 'Bushfire zone', public_housing: 'Public housing' })[r.name] ?? titleCase(r.name.replace(/_/g, ' ')), value: String(r.detail ?? '').replace(/^Not on property;\s*/i, '').replace(/^nearest\s+/i, '').replace(/\s*away$/, ''), ask: 'Any hazards I should check?', tip: `${r.detail}. ${r.on_property ? 'On the title itself.' : 'Not on the title, but close — check the strata report and a site visit.'}` });
   }
   // warnings first
   return out.sort((a, c) => (a.tone === c.tone ? 0 : a.tone === 'warn' ? -1 : 1));

@@ -607,9 +607,14 @@ const BUILDERS = {
   overlays(b) {
     const risks = b.risks ?? [];
     const pretty = { hv_power_line: 'High-voltage power line', flood: 'Flood', heritage: 'Heritage', bushfire: 'Bushfire', public_housing: 'Public housing' };
-    const items = risks.length
-      ? risks.slice(0, 8).map((r) => ({ name: (pretty[r.name] ?? titleCase(r.name.replace(/_/g, ' '))).slice(0, 36), detail: String(r.detail ?? '').replace(/^Not on property;\s*/i, '').slice(0, 36), status: r.on_property ? 'on_property' : 'nearby' }))
-      : [{ name: 'No hazards flagged', detail: 'on or near the title', status: 'clear' }];
+    const items = risks.slice(0, 8).map((r) => ({ name: (pretty[r.name] ?? titleCase(r.name.replace(/_/g, ' '))).slice(0, 36), detail: String(r.detail ?? '').replace(/^Not on property;\s*/i, '').slice(0, 36), status: r.on_property ? 'on_property' : 'nearby' }));
+    const ph = b.public_housing;
+    if (ph && !risks.some((r) => r.name === 'public_housing')) {
+      items.push(ph.within_200m
+        ? { name: 'Public housing nearby', detail: `${ph.within_200m} homes within 200 m`.slice(0, 36), status: 'nearby' }
+        : { name: 'Public housing', detail: `none within 200 m`, status: 'clear' });
+    }
+    if (!items.length) items.push({ name: 'No hazards flagged', detail: 'on or near the title', status: 'clear' });
     return {
       headline: risks.length ? `${risks.length} thing${risks.length > 1 ? 's' : ''} to check` : 'Clear.',
       items,

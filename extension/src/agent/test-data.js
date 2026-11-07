@@ -41,6 +41,9 @@ export const TEST_RAW = {
   ],
   das: [[
     { area_name: '960A Bourke Street, Zetland NSW', description: 'Site establishment, construction of 504 build-to-rent residential apartments', date: '2026-10-17', lat: -33.9050768, lng: 151.2039236 },
+    { area_name: '903-921 Bourke Street, Waterloo NSW', description: 'Construction of 376 residential apartments over basement parking', date: '2022-03-15', lat: TEST_HERE.lat + 0.004, lng: TEST_HERE.lng },
+    { area_name: '338 Botany Road, Beaconsfield NSW', description: 'Mixed use building with 111 apartments and ground floor retail', date: '2025-06-10', lat: TEST_HERE.lat - 0.006, lng: TEST_HERE.lng },
+    { area_name: '12 Defries Avenue, Zetland NSW', description: 'Construction of 48 apartments', date: '2026-02-20', lat: TEST_HERE.lat + 0.002, lng: TEST_HERE.lng },
     { area_name: '1 Far St', description: 'Construction of 300 apartments', date: '2026-01-01', lat: TEST_HERE.lat + 0.03, lng: TEST_HERE.lng },
     { area_name: '2 Near St', description: 'Alterations to a terrace', date: '2026-02-01', lat: TEST_HERE.lat + 0.001, lng: TEST_HERE.lng },
   ]],

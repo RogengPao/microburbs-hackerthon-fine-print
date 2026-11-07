@@ -12,6 +12,7 @@ import { tool, ToolError } from '../runtime/index.js';
 import { AllowlistHttpClient } from '../runtime/tools/http.js';
 import { SOURCES } from './microburbs-tools.js';
 import { findProperty, formatAddress, parseAddress, unresolvedHint } from './address.js';
+import { supplyTimeline } from './supply-timeline.js';
 
 // ---------------------------------------------------------------- geography
 // Exact SAL names (verified against geocode/suburb, 7 Nov) + approx centroids.
@@ -227,6 +228,8 @@ export function computeBrief(raw, { investor = {}, rate = 0.06, ratesInsuranceWe
       applications: pipeline.length,
       build_to_rent_dwellings: pipeline.filter((p) => p.build_to_rent).reduce((s, p) => s + p.dwellings, 0),
       largest: pipeline.slice(0, 5),
+      // WHEN it lands vs the hold — the temporal supply risk (see supply-timeline.js)
+      timeline: supplyTimeline(pipeline, { holdYears: investor.holdYears ?? 10 }),
       competing_rentals_same_beds: comps.length,
       caveat: 'DA stage unknown; older applications may be built or lapsed',
     },

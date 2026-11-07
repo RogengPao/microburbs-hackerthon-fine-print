@@ -14,8 +14,8 @@ const BRIEF = testBrief({ unit: '38', number: '3', street: 'Victoria Park Parade
 const call = (args) => ({ id: 'c1', name: 'render_ui_block', args });
 const registry = (o = {}) => new ToolRegistry([uiBlockTool({ getBrief: () => BRIEF, investor: INVESTOR, lessons: new LessonBook(memoryStorage()), ...o })]);
 
-test('all 9 design templates exist and every example is valid', () => {
-  assert.deepEqual(Object.keys(TEMPLATES), ['yield', 'supply', 'cash_flow', 'value', 'area', 'offer', 'hold', 'property', 'overlays']);
+test('all 10 templates exist and every example is valid', () => {
+  assert.deepEqual(Object.keys(TEMPLATES), ['yield', 'supply', 'supply_timeline', 'cash_flow', 'value', 'area', 'offer', 'hold', 'property', 'overlays']);
   for (const [name, t] of Object.entries(TEMPLATES)) assert.deepEqual(validate(t.schema, t.example), [], name);
 });
 
@@ -31,7 +31,7 @@ test('card numbers come from the data', () => {
   assert.equal(cf.headline, '−$181');
   assert.deepEqual(cf.lines.map((l) => l.weekly), [775, -799, -112, -45]);
   assert.equal(cardFromBrief('yield', BRIEF, INVESTOR).headline, '5.2%');
-  assert.equal(cardFromBrief('supply', BRIEF, INVESTOR).headline, '504');
+  assert.equal(cardFromBrief('supply', BRIEF, INVESTOR).headline, '1039');
   assert.deepEqual(offerLadder(BRIEF, INVESTOR), { open: 715000, aim: 745000, walk_away: 800000 });
 });
 

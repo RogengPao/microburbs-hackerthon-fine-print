@@ -86,6 +86,14 @@ const BODIES = {
     }
     return out;
   },
+  supply_timeline(b) {
+    const max = Math.max(...b.years.map((y) => y.dwellings)) || 1;
+    const box = h('div', 'ub-box');
+    for (const y of b.years) box.append(barRow(`${y.year} · yr ${y.hold_year}`, (y.dwellings / max) * 100, `${y.dwellings}`, y.build_to_rent > 0 ? 'warn' : 'muted', y.build_to_rent ? `${y.build_to_rent} build-to-rent` : null));
+    const out = [box];
+    if (b.already_built) out.push(h('div', 'ub-sub', `+ ${b.already_built} likely already built (in today's market)`));
+    return out;
+  },
   cash_flow(b) {
     const max = Math.max(...b.lines.map((l) => Math.abs(l.weekly))) || 1;
     const box = h('div', 'ub-box');

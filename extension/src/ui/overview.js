@@ -72,6 +72,16 @@ function signals(b, investor) {
       ask: 'Is the new supply a dealbreaker?',
     });
   }
+  const tl = s.timeline;
+  if (tl?.peak) {
+    out.push({
+      tag: 'TIMING',
+      tone: tl.peak.build_to_rent > 0 || tl.peak.dwellings >= 150 ? 'warn' : 'good',
+      text: `${tl.peak.build_to_rent > 0 ? 'Build-to-rent wave' : 'Supply peaks'} ~${tl.peak.year}`,
+      value: `yr ${tl.peak.hold_year} of ${investor.holdYears ?? tl.years.length - 1}`,
+      ask: 'When does the new supply land?',
+    });
+  }
   const { asking, likely_sale: likely, value } = b.price ?? {};
   if (asking && likely && likely !== asking) {
     out.push({ tag: 'QUOTE', tone: likely > asking ? 'warn' : 'good', text: likely > asking ? 'Agency sells over quote' : 'Agency sells under quote', value: `${likely > asking ? '+' : '−'}${K(Math.abs(likely - asking))}`, ask: 'What should I offer?' });

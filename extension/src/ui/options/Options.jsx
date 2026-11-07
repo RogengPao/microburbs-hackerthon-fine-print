@@ -65,6 +65,27 @@ export default function Options() {
   };
 
   const [exported, setExported] = useState('');
+
+  // Reset: wipe settings, keys, shortlist, sheet layout and the IndexedDB (saved properties,
+  // transcripts) — a brand-new install, for testing onboarding. Two clicks to confirm.
+  const [reset, setReset] = useState('idle'); // idle → confirm → done | blocked
+  const resetEverything = async () => {
+    if (reset !== 'confirm') {
+      setReset('confirm');
+      setTimeout(() => setReset((r) => (r === 'confirm' ? 'idle' : r)), 4000);
+      return;
+    }
+    await chrome.storage.local.clear();
+    const deleted = await new Promise((resolve) => {
+      const req = indexedDB.deleteDatabase('fine-print');
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+      // open panels close their connection on request; give them a moment before giving up
+      req.onblocked = () => setTimeout(() => resolve(false), 3000);
+    });
+    setForm(initialForm);
+    setReset(deleted ? 'done' : 'blocked');
+  };
   const exportData = async () => {
     setExported('Exporting…');
     try {
@@ -171,6 +192,14 @@ export default function Options() {
         <legend className="px-1 font-semibold">Debug</legend>
         <p className="mb-2 text-muted">Download everything stored locally (transcripts, saved properties, card lessons, settings) as one JSON file. API keys are removed.</p>
         <button onClick={exportData}>Export data (JSON)</button> <span className="text-muted">{exported}</span>
+        <p className="mt-4 mb-2 text-muted">Start over as a brand-new user: removes your brief, API keys, shortlist and every saved property. Can't be undone.</p>
+        <button onClick={resetEverything} style={reset === 'confirm' ? { color: '#b4402c', borderColor: '#b4402c' } : undefined}>
+          {reset === 'confirm' ? 'Click again to erase everything' : 'Reset everything'}
+        </button>{' '}
+        <span className="text-muted">
+          {reset === 'done' && 'Everything cleared. Reload a listing tab to see onboarding.'}
+          {reset === 'blocked' && 'Settings, keys and shortlist cleared. Close or reload open listing tabs, then reset again to clear saved properties.'}
+        </span>
       </fieldset>
     </div>
   );

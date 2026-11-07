@@ -24,7 +24,7 @@ The problem is two bad options. One idea per speaker; speak slower than feels na
 
 **Yong — why it's different (~10s)**
 
-> And it's your own analyst. It knows your brief, answers your questions, and builds a shortlist you can actually decide from. Fine Print: read it before you buy it.
+> And it's your own intelligent investment analyst. It knows your brief, answers your questions, and builds a shortlist you can actually decide from. Fine Print: read it before you buy it.
 
 ---
 
@@ -35,7 +35,7 @@ The demo shows the third way: the super-user's research, in seconds, on the list
 1. **Press F (0:00–0:10)** — on the REA listing. *"Gut-feel buyer sees this page. Press F."* Panel slides in, already scored against my brief.
 2. **The evidence the agent won't give you (0:10–0:35)** — *"Guide says [$850K]; this agency sells [1.4% under] its quotes, so likely [$838K] — [over] my budget. [4] rentals within a kilometre: [$775] a week, [4.7%] yield, [$181] a week out of my pocket."*
 3. **The super-user research, done (0:35–0:55)** — risks and the new-homes card. *"[504] build-to-rent homes finish within a kilometre around [2031] — year [5] of my hold. That's the development-application digging, done for me."*
-4. **Talk to it (0:55–1:10)** — tap a suggested question, e.g. "What should I offer?" *"It knows my brief, so the answer's about my numbers."* (Warm this listing first; if the answer is slow, cut to a pre-recorded take.)
+4. **Talk to it (0:55–1:10)** — tap a suggested question, e.g. "What should I offer?" *"It's my intelligent investment analyst — it knows my brief, so the answer's about my numbers."* (Warm this listing first; if the answer is slow, cut to a pre-recorded take.)
 5. **Both portals (1:10–1:20)** — switch to the organisers' Waterloo listing on Domain. *"Same on Domain — your Waterloo example."*
 6. **The shortlist (1:20–1:35)** — click the toolbar icon. *"Everything I shortlist lands here: the super-user's spreadsheet, built for me. Sort by yield, add my own formula, copy to Excel."*
 
@@ -53,7 +53,7 @@ The demo shows the third way: the super-user's research, in seconds, on the list
 - **"54% of landlords lost money"** — invites "that's negative gearing, on purpose". Our problem is *visibility*, not loss.
 - **"Only one showing development"** — Property Mate has a development radar. Our claim is *timing against your hold* plus weekly cost.
 - **"None does the investor's maths"** — YieldMate shows yield. Say "none tells you what it'll cost you each week".
-- **"Sales agent" for our AI** — judges will hear the real-estate agent. Say "your own analyst".
+- **"Sales agent" for our AI** — judges will hear the real-estate agent. Say "intelligent investment analyst".
 - **Free tier → Microburbs subscription** — not built. Frame the business case as distribution: Microburbs data at the moment of decision.
 
 ## Claims and sources (for the Q&A)

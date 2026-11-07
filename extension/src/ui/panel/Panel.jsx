@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FIRST_READ_TEXT, history, loadSettings, saveBrief, suggestQuestions } from '../../agent/agent.js';
+import { FIRST_READ_TEXT, history, loadSettings, onboardingState, saveBrief, suggestQuestions } from '../../agent/agent.js';
 import { renderOverview } from '../overview.js';
 import { useListing } from '../hooks/useListing.js';
 import { useBrief } from '../hooks/useBrief.js';
@@ -23,6 +23,7 @@ export default function Panel() {
   const { listing, threadId, newThread } = useListing();
   const [settings, setSettings] = useState(null);
   const [showSetup, setShowSetup] = useState(false);
+  const [storedBrief, setStoredBrief] = useState(null); // raw brief values (blank = not set)
   const [briefVersion, setBriefVersion] = useState(0);
   const brief = useBrief(listing, briefVersion);
   const thread = useAgentThread();
@@ -32,9 +33,11 @@ export default function Panel() {
   const qRun = useRef(0);
 
   useEffect(() => {
-    loadSettings().then((s) => {
+    // onboarding shows until every brief field has a value the investor set
+    Promise.all([loadSettings(), onboardingState()]).then(([s, o]) => {
       setSettings(s);
-      setShowSetup(!s.onboarded);
+      setStoredBrief(o.stored);
+      setShowSetup(o.needed);
     });
   }, []);
 
@@ -73,6 +76,7 @@ export default function Panel() {
     await saveBrief(b);
     const s = await loadSettings();
     setSettings(s);
+    setStoredBrief(s.brief);
     setShowSetup(false);
     setBriefVersion((v) => v + 1); // weekly cost etc. depend on the brief
   };
@@ -99,9 +103,9 @@ export default function Panel() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded } : null} onBrief={() => setShowSetup((v) => !v)} onNew={newThread} onClose={onClose} />
+      <Header brief={settings ? { ...settings.brief, onboarded: settings.onboarded && !showSetup } : null} onBrief={() => setShowSetup((v) => !v)} onNew={newThread} onClose={onClose} />
       {showSetup ? (
-        <Setup brief={settings?.brief} onSave={onSaveBrief} />
+        <Setup brief={storedBrief} onSave={onSaveBrief} />
       ) : (
         <>
           <Thread

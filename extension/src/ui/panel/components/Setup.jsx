@@ -8,7 +8,7 @@ const commas = (n) => (n ? Math.round(n).toLocaleString('en-AU') : '');
 export default function Setup({ brief, onSave }) {
   const [budget, setBudget] = useState(commas(brief?.budget));
   const [deposit, setDeposit] = useState(commas(brief?.deposit));
-  const [minYield, setMinYield] = useState(brief?.minYield ?? 4);
+  const [minYield, setMinYield] = useState(Number(brief?.minYield) > 0 ? brief.minYield : 4);
   const [hold, setHold] = useState(HOLD.includes(brief?.holdYears) ? brief.holdYears : 10);
   const b = num(budget);
   const d = num(deposit);
@@ -20,11 +20,11 @@ export default function Setup({ brief, onSave }) {
       <div className="setup-row">
         <label>
           Budget
-          <input inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value)} onBlur={() => setBudget(commas(num(budget)))} />
+          <input inputMode="numeric" placeholder="e.g. 800,000" value={budget} onChange={(e) => setBudget(e.target.value)} onBlur={() => setBudget(commas(num(budget)))} />
         </label>
         <label>
           Deposit {b && d ? `· ${Math.round((d / b) * 100)}%` : ''}
-          <input inputMode="numeric" value={deposit} onChange={(e) => setDeposit(e.target.value)} onBlur={() => setDeposit(commas(num(deposit)))} />
+          <input inputMode="numeric" placeholder="e.g. 160,000" value={deposit} onChange={(e) => setDeposit(e.target.value)} onBlur={() => setDeposit(commas(num(deposit)))} />
         </label>
       </div>
       <label>

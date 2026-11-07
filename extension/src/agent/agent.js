@@ -45,6 +45,22 @@ export function cleanBrief(brief = {}) {
   };
 }
 
+/** True when every brief field holds a real (positive) value the investor set. Pure. */
+export function briefIsSet(brief) {
+  return ['budget', 'deposit', 'minYield', 'holdYears'].every((k) => Number(brief?.[k]) > 0);
+}
+
+/**
+ * Does the investor still need onboarding? Reads the RAW stored settings — loadSettings()
+ * fills blanks with defaults, which would make an empty brief look complete.
+ * @returns {Promise<{ needed: boolean, stored: Object|null }>} stored = the raw brief (or null)
+ */
+export async function onboardingState() {
+  const { settings } = await chrome.storage.local.get('settings');
+  const stored = settings?.brief ?? null;
+  return { needed: !settings?.onboarded || !briefIsSet(stored), stored };
+}
+
 /** Save the investor brief from onboarding (marks onboarding done). */
 export async function saveBrief(brief) {
   const { settings = {} } = await chrome.storage.local.get('settings');

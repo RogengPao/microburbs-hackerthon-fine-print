@@ -15,6 +15,7 @@ import {
 import { addressFromPage, formatAddress } from './address.js';
 import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
 import { testBrief, testListingBriefTool } from './test-data.js';
+import { parsePriceText } from './price-text.js';
 import { LessonBook, uiBlockTool } from './ui-blocks.js';
 import { microburbsTools } from './microburbs-tools.js';
 import { openAppDb, PropertyMemory, propertyMemoryTools } from './property-memory.js';
@@ -109,8 +110,13 @@ export async function loadBrief({ listing, onProgress = () => {} }) {
   onProgress({ stage: 'address', ...address, text: formatAddress(address.parts) });
   const settings = await loadSettings();
   try {
+    // the listing's own price: shown text first, REA's hidden bracket for "Contact Agent"
+    const shown = parsePriceText(listing.page?.listing?.price_text);
+    const bracket = listing.page?.hidden?.priceBracket;
+    const pagePrice = shown ? { ...shown, source: 'listing price' } : bracket ? { low: bracket.min, high: bracket.max, mid: Math.round((bracket.min + bracket.max) / 2), text: `hidden bracket ${bracket.min}–${bracket.max}`, source: "portal's hidden price bracket" } : null;
     const brief = settings.mbSource === 'test' ? testBrief(address.parts, settings.brief) : await fetchListingBrief({
       parts: address.parts,
+      pagePrice,
       source: settings.mbSource,
       secretProvider: new ChromeStorageSecretProvider(),
       investor: settings.brief,

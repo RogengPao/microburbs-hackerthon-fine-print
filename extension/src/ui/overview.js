@@ -142,8 +142,8 @@ export function renderOverview(b, investor = {}, { onAsk = () => {} } = {}) {
       r.append(h('span', `ov-sw ov-sw-${swatch}`), l, h('div', `ov-legend-value ${cls}`, value));
       return r;
     };
-    if (price.value?.estimate) legend.append(row('ink', 'Estimated value', `AVM · conf ${price.value.confidence}`, K(price.value.estimate)));
-    if (price.asking) legend.append(row('muted', 'Asking', null, K(price.asking)));
+    if (price.value?.estimate) legend.append(row('ink', 'Estimated value', price.value.confidence != null ? `AVM · conf ${price.value.confidence}` : 'recent sales nearby', K(price.value.estimate)));
+    if (price.asking) legend.append(row('muted', 'Asking', price.asking_source && price.asking_source !== 'agency quote' && price.asking_source !== 'for-sale record' ? price.asking_source : null, K(price.asking)));
     if (budget != null) legend.append(row('dash', 'Your budget', null, K(budget)));
     if (price.likely_sale) {
       const a = price.agency;

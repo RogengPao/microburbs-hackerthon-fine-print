@@ -36,7 +36,7 @@ export default function Header({ brief, inSetup, onBrief, onNew, onClose }) {
         </div>
       </div>
       <div className="head-sub">
-        <span className="head-eyebrow">Property intelligence</span>
+        <span className="head-eyebrow">Your brief</span>
         <button className="brief-strip" title="Edit your investor brief" onClick={onBrief}>
           {criteria.map((c) => (
             <span key={c}>{c}</span>

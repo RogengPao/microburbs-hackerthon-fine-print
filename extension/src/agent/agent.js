@@ -14,6 +14,7 @@ import {
 } from '../runtime/index.js';
 import { addressFromPage, formatAddress } from './address.js';
 import { fetchListingBrief, listingBriefTool } from './listing-brief.js';
+import { loadPublicHousing } from './public-housing.js';
 import { parsePriceText } from './price-text.js';
 import { LessonBook, uiBlockTool } from './ui-blocks.js';
 import { microburbsTools } from './microburbs-tools.js';
@@ -96,6 +97,7 @@ Investor brief: budget $${brief.budget.toLocaleString('en-AU')}, deposit $${brie
 How to work:
 - Microburbs is the source of truth for every number. Never invent figures; if data is missing, say so.
 - Start with get_listing_brief for the listing's address: one call returns the matched property, prices, rent estimate, yield, weekly cost, supply pipeline, competition, market and hazards, all computed. Quote its numbers; don't recompute them.
+- Public housing comes from the City of Sydney list (public_housing in the brief: this home, homes in the same building, within 200 m and 500 m). State the counts plainly and neutrally; never characterise the people who live there.
 - Use the individual tools only to dig deeper on a follow-up question. Suburb tools need the exact suburb name.
 
 Memory:
@@ -150,6 +152,7 @@ export async function loadBrief({ listing, onProgress = () => {} }) {
       parts: address.parts,
       pagePrice,
       source: 'api',
+      publicHousing: await loadPublicHousing(),
       secretProvider: new ChromeStorageSecretProvider(),
       investor: settings.brief,
       onProgress,
@@ -239,7 +242,7 @@ async function turn({ threadId, inbound, listing, brief = null, instructions = n
   const cards = uiBlockTool({ getBrief: () => ctx.brief, investor: settings.brief, memory, lessons });
   const tools = new ToolRegistry(
     [
-      remembering(listingBriefTool({ source: 'api', secretProvider, investor: settings.brief, memory, listing })),
+      remembering(listingBriefTool({ source: 'api', secretProvider, investor: settings.brief, memory, listing, publicHousing: await loadPublicHousing() })),
       ...propertyMemoryTools(memory),
       cards,
       ...microburbsTools({ source: 'api', secretProvider }),

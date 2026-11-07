@@ -105,7 +105,7 @@
          and below their sticky sidebars. Same spot on REA + Domain, listing + search pages.
          Expands on hover (or briefly when it appears) to show the headline numbers. */
       .pill { position: fixed; right: 20px; bottom: 96px; z-index: 2147483646; display: none; align-items: center; gap: 9px;
-              padding: 7px 9px 7px 7px; border-radius: 999px; border: 1px solid #e2ddd2; background: #fbfaf6; color: #1e1d1b;
+              padding: 7px; border-radius: 999px; border: 1px solid #e2ddd2; background: #fbfaf6; color: #1e1d1b;
               font: 500 12.5px/16px Geist, -apple-system, system-ui, sans-serif; cursor: pointer;
               box-shadow: 0 10px 30px rgba(60,48,28,.18), 0 1px 2px rgba(60,48,28,.08);
               transition: box-shadow .2s ease, background .2s ease, transform .15s ease; animation: fp-pill-in .35s cubic-bezier(.22,.8,.24,1) backwards; }
@@ -113,13 +113,11 @@
       .pill.show { display: flex; }
       .pill .txt { display: flex; flex-direction: column; max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
                    transition: max-width .32s cubic-bezier(.22,.8,.24,1), opacity .2s ease; }
-      .pill:hover .txt, .pill:focus-visible .txt, .pill.peek .txt { max-width: 240px; opacity: 1; }
+      .pill:hover .txt, .pill:focus-visible .txt, .pill.peek .txt { max-width: 240px; opacity: 1; margin-right: 5px; }
       .pill .name { font-weight: 600; }
       .pill .sum { color: #8c877d; font-size: 11.5px; }
       .pill .sum b { color: #1e1d1b; font-weight: 600; }
       .pill .sum b.warn { color: #9a6a00; }
-      .pill kbd { font: 500 10px/14px 'Geist Mono', ui-monospace, monospace; padding: 1px 5px; border-radius: 4px; color: #8c877d;
-                  background: #f3f0e8; border: 1px solid #e6e1d6; }
       @keyframes fp-pill-in { from { opacity: 0; transform: translateY(8px); } }
       .mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #1e1d1b; }
       @media (prefers-reduced-motion: reduce) { .wrap, .shortlist, .pill { transition-duration: 1ms !important; animation: none !important; } }
@@ -128,7 +126,7 @@
       <iframe title="Fine Print" allow="clipboard-write"></iframe>
       <button class="shortlist" title="Shortlist this property (S)"><svg width="14" height="14" viewBox="0 0 13 13" fill="none"><path d="M3 1.5h7v10l-3.5-2.5L3 11.5z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="label">Shortlist this property</span><span class="k">S</span></button>
     </div>
-    <button class="pill" title="Open Fine Print (F)" aria-label="Open Fine Print (F)"><span class="mark"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 9.5V2.5h8M2 6h5" fill="none" stroke="#FBFAF6" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="txt"><span class="name">Fine Print</span><span class="sum">Press F to read this listing</span></span><kbd>F</kbd></button>`;
+    <button class="pill" title="Open Fine Print (F)" aria-label="Open Fine Print (F)"><span class="mark"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 9.5V2.5h8M2 6h5" fill="none" stroke="#FBFAF6" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="txt"><span class="name">Fine Print</span><span class="sum">Press F to read this listing</span></span></button>`;
   document.documentElement.append(host);
 
   const wrap = shadow.querySelector('.wrap');

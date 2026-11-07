@@ -1,75 +1,57 @@
-# Fine Print — pitch (2:45)
+# Fine Print — pitch
 
-**One line:** Fine Print reads the fine print on any REA or Domain listing — what it'll really sell for, what it'll cost you to hold, and when new supply lands on your rent — right beside the listing.
-
-**Who it's for:** property investors. 2.3 million Australians own a rental; 13 million browse realestate.com.au every month.
-
-**Judged on take-up**, so every beat shows *why someone installs it and keeps it open*: zero setup, both portals, one key (F), and a shortlist they live in.
-
-Read time ≈ 2:40 at a relaxed pace (~390 words). Numbers in [brackets] are read off the panel on recording day.
+Two parts: a **45-second team pitch** (just us talking, no screen) and a **short demo**.
 
 ---
 
-## 0:00 – 0:20 · The problem (face to camera, or the REA listing full screen)
+## Part 1 · 45-second pitch (~115 words)
 
-> More than half of Australia's 2.3 million landlords lost money on their rental last year. That's 1.27 million people, from the ATO's own numbers.
+Problem first. One idea per speaker. Speak slower than feels natural.
+
+**Jake — the problem (~22s)**
+
+> Buying an investment property is an eight-hundred-thousand-dollar decision, made on a page written to sell it to you.
 >
-> And the listing doesn't help. In Sydney, homes that beat their price guide sold a median $117,500 over the top of it. The listing tells you the kitchen is light-filled. It doesn't tell you what you'll actually pay, or what it'll cost you every week.
+> The listing tells you the kitchen is light-filled. It doesn't tell you what you'll really pay — in Sydney, homes that beat their guide sold a median $117,500 over the top of it. It doesn't tell you what it'll cost you each week. And it doesn't tell you a build-to-rent tower finishes down the road in year three of your hold, competing for your tenant.
 
-**Screen:** a real REA listing (Zetland, 20/8 Grandstand Parade). Hidden-price guide visible. Fine Print collapsed in the corner.
+**Carlos — what we built (~13s)**
 
-## 0:20 – 1:05 · The read (press F)
+> Fine Print sits beside every REA and Domain listing. Press F, and you see the likely sale price, your weekly cost, and when new supply lands — all from Microburbs data.
 
-> So we built Fine Print. You're on a listing, you press F.
+**Yong — why people will use it (~10s)**
 
-**Screen:** press F. Panel slides in, gauge counts up.
-
-> First — what it'll really sell for. The guide says [$850K]. Microburbs knows this agency's record: [Morton Green Square] sells [1.4% under] its quotes, so the likely sale is [$838K] — and that's [over] my [$800K] budget, so it tells me.
->
-> Second — the investor's maths, done for you. [4] similar rentals within a kilometre put rent at [$775] a week. That's a [4.7%] yield, and with my deposit it's costing me [$181] a week out of pocket. Nobody shows you that on the listing.
-
-**Screen:** hover the legend → tooltip glides between the numbers.
-
-## 1:05 – 1:40 · The thing nobody else does: *when* supply lands
-
-> Third — and this is the one we're proudest of. Everyone tells you "there's development nearby". We tell you *when*.
->
-> [504] build-to-rent homes complete within a kilometre around [2031] — that's year [5] of my hold, right when I'm re-leasing. Build-to-rent towers compete directly for my tenant. That's a rent risk you can't see anywhere else, and NSW has 17,000 of these homes in the pipeline.
-
-**Screen:** the new-homes card, bars by hold year, peak year highlighted.
-
-## 1:40 – 2:05 · Ask it anything
-
-> It's an agent, so I can just ask. "What should I offer?"
-
-**Screen:** tap a suggested question. Tool steps tick, offer card renders.
-
-> It uses the same Microburbs data — sales, rents, the agency's record — and gives me an offer range with the reasoning.
-
-## 2:05 – 2:25 · The shortlist (where they live)
-
-> Every listing I like, I hit Shortlist. And this is where investors actually live: a spreadsheet of every property, every Microburbs number. Sort by yield, filter to under [$900K], and add my own columns — here's "yield at my offer", a formula. Then copy it straight into Excel.
-
-**Screen:** shortlist tab → sort by yield → type `<900k` in Price filter → type an offer → "Yield at my offer" recalculates → Copy.
-
-## 2:25 – 2:45 · Why it gets taken up — the business case
-
-> Take-up is the whole game. It works on both REA and Domain, there's no sign-up, and it's one key to open. The most popular extension in this category has about 10,000 users — out of 13 million people on REA every month — and none of them does the investor's maths.
->
-> For Microburbs, Fine Print is distribution: your data, at the exact moment someone's deciding, and a free tier that leads straight to a Microburbs subscription. Fine Print — read it before you buy it.
-
-**Screen:** split REA / Domain with the panel open on both → end card: logo, "Fine Print — read it before you buy it", Microburbs data.
+> No sign-up, both portals, one key. Thirteen million Australians are on REA every month, and none of the extensions beside it tells you what a property will cost you each week. Fine Print: read it before you buy it.
 
 ---
 
-## Demo checklist (before recording)
+## Part 2 · Demo (~90s, one driver, one narrator)
+
+Every beat proves the problem we just named. Numbers in [brackets] come off the panel on the day; skip any beat whose number doesn't come back.
+
+1. **Press F (0:00–0:10)** — on the REA listing. *"Same listing, press F."* Panel slides in, gauge counts up.
+2. **The real price (0:10–0:30)** — *"Guide says [$850K]. This agency sells [1.4% under] its quotes, so likely sale is [$838K] — [over] my budget, and it tells me."* Hover the legend; tooltip glides.
+3. **Weekly cost (0:30–0:45)** — *"[4] similar rentals within a kilometre: rent [$775] a week, [4.7%] yield, and with my deposit it costs me [$181] a week."*
+4. **When supply lands (0:45–1:05)** — the new-homes card. *"[504] build-to-rent homes finish within a kilometre around [2031] — year [5] of my hold, right when I'm re-leasing."*
+5. **Their example, on Domain (1:05–1:20)** — switch tab to the organisers' Waterloo listing. *"Works the same on Domain — this is your Waterloo example."* (Shows both portals and the address match.)
+6. **The shortlist (1:20–1:35)** — click the toolbar icon. *"Everything I shortlist lands in a spreadsheet: sort by yield, add my own formula, copy to Excel."*
+
+**Don't demo live:** the "Ask it anything" agent beat — it depends on the model and a rate-limited API. Mention it in Q&A instead.
+
+## Before recording
 
 - [ ] Extension reloaded from `extension/dist`; investor brief set (budget, deposit, min yield, hold years)
-- [ ] Listings open in tabs: Zetland (REA), a Domain listing, the organisers' Waterloo example
-- [ ] Each brief already loaded once (cache warm → instant on camera; the API rate-limits)
-- [ ] 3–4 properties shortlisted so the spreadsheet has rows; a "My offer" typed on one
-- [ ] Fill every [bracket] from the panel; delete any line whose number didn't come back
+- [ ] Tabs open: Zetland (REA), the organisers' Waterloo example, a second Domain listing as backup
+- [ ] Every listing opened once already (cache warm → instant on camera; the API rate-limits)
+- [ ] 3–4 properties shortlisted, a "My offer" typed on one
+- [ ] Pick a listing where the supply card has real numbers — it's our differentiator
 - [ ] Close other tabs, hide bookmarks bar, 100% zoom
+
+## Wording we avoid
+
+- **"54% of landlords lost money"** — invites "that's negative gearing, on purpose". Our problem is *visibility*, not loss.
+- **"Only one showing development"** — Property Mate has a development radar. Our claim is *timing against your hold* plus weekly cost.
+- **"None does the investor's maths"** — YieldMate shows yield. Say "none tells you what it'll cost you each week".
+- **Free tier → Microburbs subscription** — not built. Frame the business case as distribution: Microburbs data at the moment of decision.
 
 ## Claims and sources (for the Q&A)
 

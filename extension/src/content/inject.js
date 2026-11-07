@@ -22,7 +22,9 @@
   const SQUISH = PANEL_W + GUTTER * 2; // 452px reserved on the right
   const PANEL_URL = chrome.runtime.getURL('panel.html'); // built by Vite into dist/
   const EXT_ORIGIN = new URL(PANEL_URL).origin;
-  const listingKey = location.origin + location.pathname;
+  // the CURRENT listing's key — REA/Domain change listings client-side without reloading this
+  // script, so it must be read each time (a key fixed at load made every listing look shortlisted)
+  const listingKey = () => (location.origin + location.pathname).replace(/\/$/, '');
 
   const isListing = () =>
     (location.hostname.endsWith('realestate.com.au') && location.pathname.startsWith('/property-')) ||
@@ -150,13 +152,19 @@
     shortlistBtn.classList.toggle('done', on);
     label.textContent = on ? 'Shortlisted ✓' : 'Shortlist this property';
   };
-  chrome.storage.local.get('shortlist').then(({ shortlist = {} }) => paint(Boolean(shortlist[listingKey])));
+  const repaint = () => chrome.storage.local.get('shortlist').then(({ shortlist = {} }) => paint(Boolean(shortlist[listingKey()])));
+  repaint();
+  // stays right when the shortlist changes elsewhere (dashboard removals, another tab)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.shortlist) repaint();
+  });
   shortlistBtn.addEventListener('click', async () => {
+    const key = listingKey();
     const { shortlist = {} } = await chrome.storage.local.get('shortlist');
-    if (shortlist[listingKey]) delete shortlist[listingKey];
-    else shortlist[listingKey] = { url: listingKey, title: document.title, heading: document.querySelector('h1')?.innerText ?? null, added_at: Date.now() };
+    if (shortlist[key]) delete shortlist[key];
+    else shortlist[key] = { url: key, title: document.title, heading: document.querySelector('h1')?.innerText ?? null, added_at: Date.now() };
     await chrome.storage.local.set({ shortlist });
-    paint(Boolean(shortlist[listingKey]));
+    paint(Boolean(shortlist[key]));
   });
 
   window.__finePrint = { open, close };
@@ -171,6 +179,7 @@
   setInterval(() => {
     if (location.href === lastUrl) return;
     lastUrl = location.href;
+    repaint(); // the shortlist button reflects the listing now on screen
     if (isListing()) {
       open();
       frame.contentWindow?.postMessage({ type: 'fineprint:navigated', url: location.href }, EXT_ORIGIN);

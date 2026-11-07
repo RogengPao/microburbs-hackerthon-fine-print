@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fine Print — Shortlist</title>
+    <link rel="stylesheet" href="shortlist.css" />
+  </head>
+  <body>
+    <header class="sl-top">
+      <div class="sl-brand"><span class="mark">F</span> Fine Print <span class="dim">/ shortlist</span></div>
+      <div class="sl-controls">
+        <span id="brief" class="chip"></span>
+        <label class="dim">Sort
+          <select id="sort">
+            <option value="fit">Best fit to your brief</option>
+            <option value="yield">Highest yield</option>
+            <option value="weekly_cost">Lowest weekly cost</option>
+            <option value="price">Lowest price</option>
+            <option value="supply">Least new supply nearby</option>
+            <option value="added">Recently added</option>
+          </select>
+        </label>
+      </div>
+    </header>
+    <main class="sl-main">
+      <h1 class="sl-title">Your shortlist <span id="count" class="dim"></span></h1>
+      <p class="dim sl-sub">Figures are from Microburbs, as of when you last opened each listing. Blue marks the best in each column.</p>
+      <div id="rows" class="sl-grid"></div>
+      <section id="recent-wrap" hidden>
+        <h2 class="sl-h2">Recently analysed <span class="dim">— not on your shortlist</span></h2>
+        <div id="recent" class="sl-recent"></div>
+      </section>
+    </main>
+    <script type="module" src="shortlist.js"></script>
+  </body>
+</html>

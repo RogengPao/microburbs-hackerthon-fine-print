@@ -13,7 +13,7 @@
     "https://www.realestate.com.au/*",
     "https://www.domain.com.au/*"
   ],
-  "action": { "default_title": "Fine Print" },
+  "action": { "default_title": "Fine Print — your shortlist" },
   "options_page": "options.html",
   "content_scripts": [
     {

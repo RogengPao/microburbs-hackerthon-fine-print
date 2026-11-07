@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FIRST_READ_TEXT } from '../../../agent/agent.js';
 import { normaliseBlockArgs } from '../../../agent/ui-blocks.js';
 import { renderBlock } from '../../blocks.js';
@@ -69,16 +69,90 @@ function cardOf(item) {
   return { template, body };
 }
 
+/**
+ * Smooth streaming: the model sends text in bursts; show it flowing at an even pace
+ * instead. Each frame reveals a slice of what's left (about 1/10th), so it never lags far
+ * behind and finishes the moment the stream does.
+ */
+function useSmoothText(target) {
+  const [shown, setShown] = useState('');
+  const shownRef = useRef('');
+  useEffect(() => {
+    if (target == null) {
+      shownRef.current = '';
+      setShown('');
+      return undefined;
+    }
+    if (!target.startsWith(shownRef.current)) shownRef.current = ''; // a new step's text
+    let raf = 0;
+    const tick = () => {
+      const cur = shownRef.current;
+      if (cur.length >= target.length) return;
+      const step = Math.max(1, Math.ceil((target.length - cur.length) / 10));
+      shownRef.current = target.slice(0, cur.length + step);
+      setShown(shownRef.current);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  return target == null ? null : shown;
+}
+
 export default function Thread({ overview, messages, liveText, statusLine, eventLines, turnMeta, turnError }) {
   const items = useMemo(() => deriveItems(messages), [messages]);
+  const smoothText = useSmoothText(liveText);
   const mainRef = useRef(null);
+  const prevUsers = useRef(0);
+  const stick = useRef(true); // following the bottom? set by the reader's own scrolling
+
+  // Pin to the bottom while following: re-pin whenever anything in the thread changes size —
+  // cards keep growing after they're inserted (animations, layout), so a one-off scroll
+  // after render lands short. Scrolling up stops following; back near the bottom resumes it.
   useEffect(() => {
     const el = mainRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [items.length, liveText, eventLines.length, statusLine, turnMeta, turnError]);
+    if (!el) return undefined;
+    const pin = () => {
+      if (stick.current) el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
+    };
+    const ro = new ResizeObserver(pin);
+    const observeAll = () => {
+      ro.disconnect();
+      for (const child of el.children) ro.observe(child);
+      pin();
+    };
+    const mo = new MutationObserver(observeAll);
+    mo.observe(el, { childList: true });
+    observeAll();
+    const onScroll = () => {
+      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
+  // a message you just sent always brings you back to the bottom (Carlos)
+  useEffect(() => {
+    const users = items.reduce((n, i) => n + (i.kind === 'user' ? 1 : 0), 0);
+    if (users !== prevUsers.current) stick.current = true;
+    prevUsers.current = users;
+    const el = mainRef.current;
+    if (el && stick.current) el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
+  }, [items, liveText, eventLines.length, statusLine, turnMeta, turnError]);
 
   return (
     <main id="thread" ref={mainRef}>
+      {!overview && items.length === 0 && liveText === null && (
+        <div className="thread-empty">
+          Open a listing on realestate.com.au or Domain
+          <br />
+          and it appears here, scored against your brief.
+        </div>
+      )}
       {overview}
       {items.map((it) => {
         if (it.kind === 'tool') return <ToolCall key={it.key} {...it} />;
@@ -100,8 +174,8 @@ export default function Thread({ overview, messages, liveText, statusLine, event
           {line.text}
         </div>
       ))}
-      {liveText !== null && (
-        <div className="msg agent live md" dangerouslySetInnerHTML={{ __html: renderMarkdown(liveText) }} />
+      {smoothText !== null && (
+        <div className="msg agent live md" dangerouslySetInnerHTML={{ __html: renderMarkdown(smoothText) }} />
       )}
       {/* turn stats (steps · tokens · cost) are debug data — not shown; Settings → Export has everything */}
       {turnError && <Message kind="error" text={turnError} />}

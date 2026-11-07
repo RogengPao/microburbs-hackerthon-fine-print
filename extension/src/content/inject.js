@@ -81,33 +81,47 @@
       :host { all: initial; }
       .wrap { position: fixed; top: ${GUTTER}px; right: ${GUTTER}px; bottom: ${GUTTER}px; width: ${PANEL_W}px; z-index: 2147483646;
               display: flex; flex-direction: column; gap: 8px; font-family: Geist, -apple-system, system-ui, sans-serif;
-              transition: transform .25s ease, opacity .25s ease; }
-      .wrap.closed { transform: translateX(${PANEL_W + GUTTER}px); opacity: 0; pointer-events: none; }
+              transition: transform .38s cubic-bezier(.2,.8,.2,1), opacity .25s ease; }
+      .wrap.closed { transform: translateX(${PANEL_W + GUTTER}px); opacity: 0; pointer-events: none; transition-duration: .26s, .2s; }
       iframe { flex: 1; width: 100%; border: 1px solid #e2ddd2; border-radius: 22px; background: #fbfaf6;
                box-shadow: 0 24px 60px rgba(60,48,28,.16), 0 1px 2px rgba(60,48,28,.08); }
       .shortlist { height: 46px; flex-shrink: 0; border: none; border-radius: 14px; background: #2f64d9; color: #fff;
                    font: 600 14px Geist, -apple-system, system-ui, sans-serif; cursor: pointer;
                    box-shadow: 0 10px 24px rgba(47,100,217,.28), inset 0 1px 0 rgba(255,255,255,.18);
-                   display: flex; align-items: center; justify-content: center; gap: 10px; }
-      .shortlist.done { background: #1e1d1b; box-shadow: none; }
+                   display: flex; align-items: center; justify-content: center; gap: 10px;
+                   transition: background .2s ease, box-shadow .2s ease, transform .12s ease, opacity .3s ease .12s, translate .38s cubic-bezier(.2,.8,.2,1) .08s; }
+      .wrap.closed .shortlist { opacity: 0; translate: 0 10px; }
+      .shortlist:hover { background: #2a5bc8; }
+      .shortlist:active { transform: scale(.985); }
+      .shortlist .k { display: inline-grid; place-items: center; height: 20px; padding: 0 6px; border-radius: 5px; background: rgba(255,255,255,.18);
+                      font: 400 10px 'Geist Mono', ui-monospace, monospace; }
+      .shortlist svg path { transition: fill .2s ease; }
+      .shortlist.done { background: #1e1d1b; box-shadow: 0 10px 24px rgba(30,29,27,.18); }
+      .shortlist.done svg path { fill: #fff; }
+      .shortlist.pop { animation: fp-pop .35s cubic-bezier(.2,.8,.2,1); }
+      @keyframes fp-pop { 40% { transform: scale(1.02); } }
       .pill { position: fixed; right: ${GUTTER}px; bottom: ${GUTTER}px; z-index: 2147483646; display: none; align-items: center; gap: 8px;
-              padding: 10px 14px; border-radius: 999px; border: 1px solid #e2ddd2; background: #fbfaf6; color: #1e1d1b;
-              font: 600 13px Geist, -apple-system, system-ui, sans-serif; cursor: pointer; box-shadow: 0 10px 30px rgba(60,48,28,.18); }
+              padding: 9px 14px 9px 10px; border-radius: 999px; border: 1px solid #e2ddd2; background: #fbfaf6; color: #1e1d1b;
+              font: 600 13px Geist, -apple-system, system-ui, sans-serif; cursor: pointer; box-shadow: 0 10px 30px rgba(60,48,28,.18);
+              transition: transform .15s ease, box-shadow .15s ease; animation: fp-in .3s cubic-bezier(.2,.8,.2,1); }
+      .pill:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(60,48,28,.22); }
       .pill.show { display: flex; }
-      .mark { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: #1e1d1b; color: #fbfaf6; font-size: 11px; }
+      @keyframes fp-in { from { opacity: 0; transform: translateY(8px); } }
+      .mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #1e1d1b; }
+      @media (prefers-reduced-motion: reduce) { .wrap, .shortlist, .pill { transition-duration: 1ms !important; animation: none !important; } }
     </style>
     <div class="wrap closed">
       <iframe title="Fine Print" allow="clipboard-write"></iframe>
-      <button class="shortlist"><svg width="14" height="14" viewBox="0 0 13 13" fill="none"><path d="M3 1.5h7v10l-3.5-2.5L3 11.5z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Shortlist this property</span></button>
+      <button class="shortlist" title="Shortlist this property (S)"><svg width="14" height="14" viewBox="0 0 13 13" fill="none"><path d="M3 1.5h7v10l-3.5-2.5L3 11.5z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="label">Shortlist this property</span><span class="k">S</span></button>
     </div>
-    <button class="pill"><span class="mark">F</span> Fine Print</button>`;
+    <button class="pill"><span class="mark"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 9.5V2.5h8M2 6h5" fill="none" stroke="#FBFAF6" stroke-width="1.6" stroke-linecap="round"/></svg></span> Fine Print</button>`;
   document.documentElement.append(host);
 
   const wrap = shadow.querySelector('.wrap');
   const frame = shadow.querySelector('iframe');
   const pill = shadow.querySelector('.pill');
   const shortlistBtn = shadow.querySelector('.shortlist');
-  const label = shortlistBtn.querySelector('span');
+  const label = shortlistBtn.querySelector('.label');
   let isOpen = false;
 
   function open() {
@@ -150,7 +164,7 @@
   // ---------------------------------------------------------------- shortlist
   const paint = (on) => {
     shortlistBtn.classList.toggle('done', on);
-    label.textContent = on ? 'Shortlisted ✓' : 'Shortlist this property';
+    label.textContent = on ? 'Shortlisted' : 'Shortlist this property';
   };
   const repaint = () => chrome.storage.local.get('shortlist').then(({ shortlist = {} }) => paint(Boolean(shortlist[listingKey()])));
   repaint();
@@ -165,6 +179,16 @@
     else shortlist[key] = { url: key, title: document.title, heading: document.querySelector('h1')?.innerText ?? null, added_at: Date.now() };
     await chrome.storage.local.set({ shortlist });
     paint(Boolean(shortlist[key]));
+    shortlistBtn.classList.remove('pop');
+    void shortlistBtn.offsetWidth; // restart the press animation
+    shortlistBtn.classList.add('pop');
+  });
+  // "S" shortlists (the key hint on the button) — only while open, never while typing on the page
+  window.addEventListener('keydown', (e) => {
+    if (!isOpen || e.key.toLowerCase() !== 's' || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    const t = e.target;
+    if (t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName ?? '')) return;
+    shortlistBtn.click();
   });
 
   window.__finePrint = { open, close };

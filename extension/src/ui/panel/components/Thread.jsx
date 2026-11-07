@@ -7,7 +7,7 @@ import DomNode from './DomNode.jsx';
 import Message from './Message.jsx';
 import ToolCall from './ToolCall.jsx';
 
-const META_CLASS = 'shrink-0 self-center font-mono text-[10px] text-muted';
+const META_CLASS = 'meta';
 
 /**
  * Transcript records → render items:
@@ -78,28 +78,28 @@ export default function Thread({ overview, messages, liveText, statusLine, event
   }, [items.length, liveText, eventLines.length, statusLine, turnMeta, turnError]);
 
   return (
-    <main ref={mainRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
+    <main id="thread" ref={mainRef}>
       {overview}
       {items.map((it) => {
         if (it.kind === 'tool') return <ToolCall key={it.key} {...it} />;
         if (it.kind === 'card') {
           const c = cardOf(it);
           return c.failed ? (
-            <div key={it.key} className={META_CLASS}>{`✕ card not drawn: ${c.failed}`}</div>
+            <div key={it.key} className="meta tool-line err">{`Couldn't draw that card: ${c.failed}`}</div>
           ) : (
             <DomNode key={it.key} build={() => renderBlock(c.template, c.body)} deps={[it.response?.text]} />
           );
         }
         return <Message key={it.key} {...it} />;
       })}
-      {statusLine && <div className={META_CLASS}>{statusLine}</div>}
+      {statusLine && <div className="meta status-line">{statusLine}</div>}
       {eventLines.map((line) => (
-        <div key={line.id} className={META_CLASS}>
+        <div key={line.id} className={`meta tool-line ${line.state ?? 'done'}`}>
           {line.text}
         </div>
       ))}
       {liveText !== null && (
-        <div className="md fp-live shrink-0 self-stretch px-0.5 text-[13.5px] leading-[1.6]" dangerouslySetInnerHTML={{ __html: renderMarkdown(liveText) }} />
+        <div className="msg agent live md" dangerouslySetInnerHTML={{ __html: renderMarkdown(liveText) }} />
       )}
       {/* turn stats (steps · tokens · cost) are debug data — not shown; Settings → Export has everything */}
       {turnError && <Message kind="error" text={turnError} />}

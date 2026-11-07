@@ -1,7 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+/** The composer: grows with the text (up to 120 px), Enter sends, Shift+Enter is a new line. */
 export default function AskForm({ busy, onSend }) {
   const [value, setValue] = useState('');
+  const ref = useRef(null);
+  useEffect(() => {
+    const t = ref.current;
+    if (!t) return;
+    t.style.height = 'auto';
+    t.style.height = `${Math.min(120, t.scrollHeight)}px`;
+  }, [value]);
 
   const submit = (e) => {
     e.preventDefault();
@@ -10,29 +18,21 @@ export default function AskForm({ busy, onSend }) {
     setValue('');
   };
 
-  const onKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      submit(e);
-    }
-  };
-
   return (
-    <form onSubmit={submit} className="flex items-end gap-2 border-t border-line bg-card px-3 py-2.5">
+    <form id="ask" onSubmit={submit}>
       <textarea
-        rows={2}
+        id="input"
+        ref={ref}
+        rows={1}
         placeholder="Ask anything about this listing…"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={onKeyDown}
-        className="flex-1 resize-none border-none bg-transparent outline-none"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) submit(e);
+        }}
       />
-      <button
-        type="submit"
-        disabled={busy}
-        className="h-8 w-8 rounded-full border-none bg-ink p-0 text-paper disabled:opacity-40"
-      >
-        ↑
+      <button type="submit" id="send" aria-label="Send" disabled={busy || !value.trim()}>
+        <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 12V2M3 6l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
     </form>
   );

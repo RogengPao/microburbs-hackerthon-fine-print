@@ -84,9 +84,11 @@ export default function Thread({ overview, messages, liveText, statusLine, event
         if (it.kind === 'tool') return <ToolCall key={it.key} {...it} />;
         if (it.kind === 'card') {
           const c = cardOf(it);
-          return c.failed ? (
-            <div key={it.key} className="meta tool-line err">{`Couldn't draw that card: ${c.failed}`}</div>
-          ) : (
+          if (c.failed) {
+            console.warn('[fine-print] card not drawn:', c.failed);
+            return null;
+          }
+          return (
             <DomNode key={it.key} build={() => renderBlock(c.template, c.body)} deps={[it.response?.text]} />
           );
         }

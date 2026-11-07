@@ -169,17 +169,20 @@ const BODIES = {
   },
 
   value(b) {
-    // confidence pips
-    const side = h('div', 'ub-side');
-    const conf = h('div', 'ub-conf');
-    const on = Math.round(b.confidence / 10);
-    for (let i = 0; i < 10; i++) {
-      const pip = h('i', i < on ? 'on' : null);
-      pip.style.setProperty('--i', String(i));
-      conf.append(pip);
+    // confidence pips (only Microburbs' own valuation has a confidence score)
+    let side = null;
+    if (Number.isFinite(b.confidence)) {
+      side = h('div', 'ub-side');
+      const conf = h('div', 'ub-conf');
+      const on = Math.round(b.confidence / 10);
+      for (let i = 0; i < 10; i++) {
+        const pip = h('i', i < on ? 'on' : null);
+        pip.style.setProperty('--i', String(i));
+        conf.append(pip);
+      }
+      conf.append(h('b', null, Math.round(b.confidence)));
+      side.append(h('div', 'ub-eyebrow', 'Confidence'), conf);
     }
-    conf.append(h('b', null, Math.round(b.confidence)));
-    side.append(h('div', 'ub-eyebrow', 'Confidence'), conf);
 
     // tick strip: blue inside the AVM range up to asking, yellow asking → likely, grey to high
     const pts = [b.low, b.high, b.estimate, b.asking, b.likely].filter((x) => x != null);
@@ -209,17 +212,19 @@ const BODIES = {
     mark(b.asking, C.muted, `ask ${money(b.asking)}`, false);
     mark(b.likely, C.warnInk, `likely ${money(b.likely)}`, true);
     // range ends, below — skipped where the ask label would collide
-    const askX = b.asking != null ? x(b.asking) : -999;
-    if (Math.abs(x(b.low) - askX) > 50) s.append(svg('text', { x: Math.max(0, x(b.low)).toFixed(1), y: 58, fill: C.muted }, money(b.low)));
-    if (Math.abs(x(b.high) - askX) > 50) s.append(svg('text', { x: Math.min(W, x(b.high)).toFixed(1), y: 58, 'text-anchor': 'end', fill: C.muted }, money(b.high)));
+    // compare label CENTRES (labels near an edge are pinned to it, so their centre moves inwards)
+    const centre = (xx, half) => (xx > W - 40 ? W - half : xx < 40 ? half : xx);
+    const askC = b.asking != null ? centre(x(b.asking), 34) : -999;
+    if (Math.abs(Math.max(0, x(b.low)) + 24 - askC) > 70) s.append(svg('text', { x: Math.max(0, x(b.low)).toFixed(1), y: 58, fill: C.muted }, money(b.low)));
+    if (Math.abs(Math.min(W, x(b.high)) - 24 - askC) > 70) s.append(svg('text', { x: Math.min(W, x(b.high)).toFixed(1), y: 58, 'text-anchor': 'end', fill: C.muted }, money(b.high)));
     const box = h('div', 'ub-box');
     box.append(s);
 
     const note = h('div', 'ub-note-box');
     const text = h('div');
-    text.append(h('strong', null, "What's an AVM? "), b.caption ?? '');
+    text.append(h('strong', null, Number.isFinite(b.confidence) ? "What's an AVM? " : 'How this is estimated: '), b.caption ?? '');
     note.append(h('span', 'ub-i', 'i'), text);
-    return [top(b, 'Estimated value · AVM', { side }), box, note, ...sourcesOnly(b)];
+    return [top(b, Number.isFinite(b.confidence) ? 'Estimated value · AVM' : 'Estimated value · recent sales', { side }), box, note, ...sourcesOnly(b)];
   },
 
   area(b) {
@@ -433,7 +438,7 @@ const HEADLINE_TIPS = {
   supply: (b) => `New homes stated in development applications within 1 km${b.projects?.some((p) => p.build_to_rent) ? '; build-to-rent projects compete directly for tenants' : ''}.`,
   supply_timeline: () => 'Peak year new homes most likely complete, and which year of your hold that is. Estimated from DA lodgement + ~9 months approval + build time by size.',
   cash_flow: () => 'Net weekly cost before tax: interest + strata + rates/insurance − rent. Negative = money out of your pocket.',
-  value: (b) => `Microburbs' automated valuation (range ${money(b.low)}–${money(b.high)}, confidence ${b.confidence}/100). A second opinion, not a bank valuation.`,
+  value: (b) => (Number.isFinite(b.confidence) ? `Microburbs' automated valuation (range ${money(b.low)}–${money(b.high)}, confidence ${b.confidence}/100). A second opinion, not a bank valuation.` : `Estimated from recent same-bedroom sales nearby (range ${money(b.low)}–${money(b.high)}). A second opinion, not a bank valuation.`),
   area: (b) => `How this property compares with ${b.compare_to} on ${b.metrics?.length ?? 0} measures.`,
   offer: (b) => `Aim: between the estimated value and asking. Walk away: your budget or the likely sale, whichever is lower. Open at ${money(b.open)}.`,
   hold: (b) => `Illustrative gain over ${b.years} years after rent and holding costs, before tax — assumes 3% growth a year and 6% interest.`,

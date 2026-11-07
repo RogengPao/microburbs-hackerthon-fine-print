@@ -205,6 +205,8 @@ form#ask:focus-within { box-shadow: inset 0 1px 0 rgba(47, 100, 217, .25); }
 .msg.md h3 em, .msg.md h4 em { color: var(--muted); }
 .msg.md h5, .msg.md h6 { margin: 14px 0 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
 .msg.md ul, .msg.md ol { margin: 0 0 10px; padding-left: 18px; }
+.msg.md ul { list-style: disc; } .msg.md ol { list-style: decimal; } /* Tailwind's preflight strips these */
+.msg.md ul ul { list-style: circle; margin: 2px 0 0; }
 .msg.md li { margin: 3px 0; }
 .msg.md li::marker { color: var(--muted); }
 .msg.md strong { font-weight: 500; color: var(--ink); }

@@ -72,13 +72,26 @@ function cardOf(item) {
 export default function Thread({ overview, messages, liveText, statusLine, eventLines, turnMeta, turnError }) {
   const items = useMemo(() => deriveItems(messages), [messages]);
   const mainRef = useRef(null);
+  const prevUsers = useRef(0);
   useEffect(() => {
     const el = mainRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [items.length, liveText, eventLines.length, statusLine, turnMeta, turnError]);
+    if (!el) return;
+    // follow the stream only if the reader is at the bottom; always follow a sent message (Carlos)
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+    const users = items.reduce((n, i) => n + (i.kind === 'user' ? 1 : 0), 0);
+    if (nearBottom || users !== prevUsers.current) el.scrollTop = el.scrollHeight;
+    prevUsers.current = users;
+  }, [items, liveText, eventLines.length, statusLine, turnMeta, turnError]);
 
   return (
     <main id="thread" ref={mainRef}>
+      {!overview && items.length === 0 && liveText === null && (
+        <div className="thread-empty">
+          Open a listing on realestate.com.au or Domain
+          <br />
+          and it appears here, scored against your brief.
+        </div>
+      )}
       {overview}
       {items.map((it) => {
         if (it.kind === 'tool') return <ToolCall key={it.key} {...it} />;
